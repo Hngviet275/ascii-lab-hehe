@@ -1,10 +1,10 @@
-# ASCII mini
+# ASCII lab . hehe v01
 
 Turn any image into ASCII art — in one HTML file, entirely in your browser.
 
 **Live demo:** https://hngviet275.github.io/ascii-mini/
 
-![ASCII mini](docs/screenshot.png)
+![ASCII lab . hehe v01](docs/screenshot.png)
 
 ## Why this exists
 

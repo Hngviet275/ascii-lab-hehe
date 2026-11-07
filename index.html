@@ -1,0 +1,1681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>ASCII mini — image to ASCII</title>
+<meta name="description" content="A tiny, single-file ASCII art converter. Runs entirely in your browser.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b0d11'/%3E%3Ctext x='32' y='43' font-family='monospace' font-size='28' fill='%237dd3fc' text-anchor='middle'%3E@%3C/text%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #08090b;
+    --panel: rgba(15, 17, 22, 0.72);
+    --panel-solid: rgba(15, 17, 22, 0.96);
+    --line: rgba(255, 255, 255, 0.09);
+    --line-strong: rgba(255, 255, 255, 0.17);
+    --text: #e9eef5;
+    --muted: #8b95a7;
+    --accent: #7dd3fc;
+    --accent-soft: rgba(125, 211, 252, 0.14);
+    --radius: 14px;
+    --shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body { height: 100%; }
+
+  body {
+    margin: 0;
+    overflow: hidden;
+    background: var(--bg);
+    color: var(--text);
+    font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  [hidden] { display: none !important; }
+
+  button, input, select { font: inherit; color: inherit; }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  #stage {
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(900px 520px at 68% 26%, rgba(56, 189, 248, 0.10), transparent 62%),
+      radial-gradient(760px 520px at 22% 96%, rgba(125, 211, 252, 0.055), transparent 62%),
+      linear-gradient(rgba(255, 255, 255, 0.020) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.020) 1px, transparent 1px),
+      var(--bg);
+    background-size: auto, auto, 56px 56px, 56px 56px, auto;
+  }
+
+  #viewport {
+    position: fixed;
+    inset: 0;
+    padding: 80px 24px 24px 320px;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    touch-action: none;
+  }
+
+  #canvas {
+    display: block;
+    width: 320px;
+    height: 200px;
+    background: #000;
+    border-radius: 8px;
+    box-shadow: 0 30px 90px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.07);
+    transform-origin: center center;
+    touch-action: none;
+    cursor: grab;
+    will-change: transform;
+  }
+
+  #canvas:active { cursor: grabbing; }
+
+  .topbar {
+    position: fixed;
+    top: 14px;
+    left: 16px;
+    right: 16px;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    pointer-events: none;
+  }
+
+  .brand {
+    font-size: 15px;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+    text-shadow: 0 2px 18px rgba(0, 0, 0, 0.7);
+  }
+
+  .brand b { color: var(--accent); font-weight: 650; }
+
+  .brand .dot { color: var(--muted); margin: 0 2px; }
+
+  .actions {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    pointer-events: auto;
+  }
+
+  .btn {
+    height: 32px;
+    padding: 0 13px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: rgba(16, 18, 24, 0.66);
+    color: var(--text);
+    font-size: 12.5px;
+    font-weight: 550;
+    letter-spacing: 0.01em;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    backdrop-filter: blur(16px) saturate(1.2);
+    transition: background 0.16s, border-color 0.16s, color 0.16s;
+  }
+
+  .btn:hover { background: rgba(32, 38, 49, 0.85); border-color: var(--line-strong); }
+  .btn:active { transform: translateY(1px); }
+  .btn.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #06131b;
+  }
+  .btn.primary:hover { background: #a5e3ff; border-color: #a5e3ff; }
+
+  .menu { position: relative; }
+  .menu summary { list-style: none; }
+  .menu summary::-webkit-details-marker { display: none; }
+  .menu summary::after {
+    content: "";
+    width: 5px;
+    height: 5px;
+    margin-left: 7px;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    transform: rotate(45deg) translateY(-1px);
+    opacity: 0.65;
+    display: inline-block;
+  }
+  .menu[open] summary { border-color: rgba(125, 211, 252, 0.45); color: var(--accent); }
+  .menu-pop {
+    position: absolute;
+    top: calc(100% + 7px);
+    right: 0;
+    min-width: 138px;
+    padding: 5px;
+    display: grid;
+    gap: 2px;
+    border-radius: 11px;
+    border: 1px solid var(--line);
+    background: var(--panel-solid);
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(20px);
+  }
+  .menu-pop button {
+    height: 30px;
+    padding: 0 9px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--text);
+    font-size: 12px;
+    text-align: left;
+    cursor: pointer;
+  }
+  .menu-pop button:hover { background: var(--accent-soft); color: var(--accent); }
+
+  .panel {
+    position: fixed;
+    top: 78px;
+    bottom: 16px;
+    left: 16px;
+    z-index: 20;
+    width: 276px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: var(--radius);
+    border: 1px solid var(--line);
+    background: var(--panel);
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(20px) saturate(1.3);
+  }
+
+  .panel-grip {
+    display: none;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    height: 46px;
+    border: 0;
+    border-bottom: 1px solid var(--line);
+    background: transparent;
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 650;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    cursor: pointer;
+  }
+
+  .panel-grip .grip-bar {
+    width: 26px;
+    height: 3px;
+    border-radius: 999px;
+    background: var(--line-strong);
+  }
+
+  .panel-grip .chev {
+    width: 6px;
+    height: 6px;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    transform: rotate(225deg);
+    transition: transform 0.2s;
+  }
+
+  .panel-grip[aria-expanded="true"] .chev { transform: rotate(45deg); }
+
+  .panel-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 2px 14px 14px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+  }
+
+  .panel-body::-webkit-scrollbar { width: 8px; }
+  .panel-body::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.14);
+    border-radius: 999px;
+  }
+
+  .field-label {
+    display: block;
+    margin: 14px 0 7px;
+    font-size: 10px;
+    font-weight: 650;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .seg {
+    display: flex;
+    gap: 3px;
+    padding: 3px;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .seg-btn {
+    flex: 1 1 0;
+    height: 28px;
+    padding: 0 4px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 550;
+    cursor: pointer;
+    transition: background 0.16s, color 0.16s, box-shadow 0.16s;
+  }
+
+  .seg-btn:hover { color: var(--text); }
+  .seg-btn.is-active {
+    background: var(--accent-soft);
+    color: var(--accent);
+    box-shadow: inset 0 0 0 1px rgba(125, 211, 252, 0.35);
+  }
+
+  .group {
+    min-width: 0;
+    margin: 16px 0 0;
+    padding: 0;
+    border: 0;
+    transition: opacity 0.2s;
+  }
+
+  .group > legend {
+    padding: 0;
+    margin-bottom: 2px;
+    font-size: 10px;
+    font-weight: 650;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .group:disabled { opacity: 0.4; pointer-events: none; }
+
+  .select {
+    width: 100%;
+    height: 32px;
+    padding: 0 9px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text);
+    font-size: 12.5px;
+  }
+
+  .select option { background: #12141a; }
+
+  .range-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 12px 0 4px;
+    font-size: 12.5px;
+  }
+
+  .range-head output {
+    min-width: 30px;
+    padding: 1px 6px;
+    border-radius: 5px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font: 11px/1.5 ui-monospace, "SF Mono", Menlo, monospace;
+    text-align: center;
+  }
+
+  input[type="range"] {
+    display: block;
+    width: 100%;
+    height: 18px;
+    margin: 0;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+
+  .switch-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin: 13px 0 0;
+    font-size: 12.5px;
+    cursor: pointer;
+  }
+
+  .switch-row input {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+
+  .palette-block { margin-top: 16px; }
+
+  .btn-reset {
+    width: 100%;
+    height: 34px;
+    margin-top: 20px;
+    border-radius: 9px;
+    border: 1px dashed var(--line-strong);
+    background: transparent;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 550;
+    cursor: pointer;
+  }
+
+  .btn-reset:hover { color: var(--text); border-color: rgba(255, 255, 255, 0.3); }
+
+  #empty {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    padding: 80px 24px 24px 320px;
+    display: grid;
+    place-items: center;
+    pointer-events: none;
+  }
+
+  .empty-card {
+    pointer-events: auto;
+    width: min(360px, 100%);
+    padding: 24px;
+    border-radius: 18px;
+    border: 1px solid var(--line);
+    background: rgba(14, 16, 21, 0.82);
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(22px) saturate(1.2);
+    text-align: center;
+  }
+
+  .empty-kicker {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  .empty-card h1 {
+    margin: 9px 0 7px;
+    font-size: 22px;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+  }
+
+  .empty-card p {
+    margin: 0 0 18px;
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: var(--muted);
+  }
+
+  .empty-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  #dropVeil {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: grid;
+    place-items: center;
+    background: rgba(6, 8, 12, 0.74);
+    backdrop-filter: blur(5px);
+  }
+
+  .veil-frame {
+    padding: 34px 46px;
+    border-radius: 20px;
+    border: 1px dashed rgba(125, 211, 252, 0.55);
+    background: rgba(12, 16, 22, 0.6);
+    color: var(--accent);
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+
+  #toast {
+    position: fixed;
+    left: 50%;
+    bottom: 22px;
+    z-index: 70;
+    max-width: calc(100vw - 32px);
+    padding: 9px 16px;
+    border-radius: 999px;
+    border: 1px solid rgba(125, 211, 252, 0.35);
+    background: rgba(16, 19, 25, 0.94);
+    box-shadow: 0 12px 34px rgba(0, 0, 0, 0.55);
+    font-size: 12.5px;
+    text-align: center;
+    transform: translateX(-50%);
+  }
+
+  #toast[data-kind="error"] { border-color: rgba(248, 113, 113, 0.55); color: #fecaca; }
+
+  @media (max-width: 760px) {
+    .topbar { top: 10px; left: 10px; right: 10px; }
+    .brand { font-size: 13px; }
+    .btn { height: 30px; padding: 0 11px; font-size: 12px; }
+
+    #viewport, #empty {
+      padding: 64px 12px 60px;
+    }
+
+    #toast { bottom: 70px; }
+
+    .panel {
+      top: auto;
+      right: 10px;
+      bottom: 10px;
+      left: 10px;
+      width: auto;
+      max-height: 46vh;
+      transition: transform 0.26s cubic-bezier(0.22, 0.9, 0.3, 1);
+    }
+
+    .panel.is-collapsed { transform: translateY(calc(100% - 46px)); }
+    .panel-grip { display: flex; }
+    .panel-body { padding-bottom: calc(14px + env(safe-area-inset-bottom)); }
+    .empty-card { padding: 20px; }
+  }
+
+  @media (max-width: 430px) {
+    .brand { display: none; }
+    .topbar { justify-content: flex-end; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      transition: none !important;
+      animation: none !important;
+      scroll-behavior: auto !important;
+    }
+  }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">ASCII<span class="dot">·</span><b>mini</b></div>
+  <div class="actions">
+    <button type="button" class="btn" data-action="open">Open</button>
+    <details class="menu" id="pngMenu">
+      <summary class="btn">PNG</summary>
+      <div class="menu-pop">
+        <button type="button" data-action="png1">PNG 1×</button>
+        <button type="button" data-action="png2">PNG 2×</button>
+      </div>
+    </details>
+    <button type="button" class="btn" data-action="jpg">JPG</button>
+    <button type="button" class="btn" data-action="svg">SVG</button>
+  </div>
+</header>
+
+<main id="stage">
+  <div id="viewport">
+    <canvas id="canvas" width="320" height="200" role="img" tabindex="0"
+      aria-label="ASCII preview. Open an image or try the demo."></canvas>
+  </div>
+
+  <div id="empty">
+    <div class="empty-card">
+      <div class="empty-kicker">Local · no upload</div>
+      <h1>Drop an image</h1>
+      <p>PNG, JPG, WebP or GIF. Everything is processed in this tab — nothing leaves your device.</p>
+      <div class="empty-actions">
+        <button type="button" class="btn primary" data-action="open">Open image</button>
+        <button type="button" class="btn" data-action="demo">Try demo</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="dropVeil" hidden>
+    <div class="veil-frame">Drop to render</div>
+  </div>
+</main>
+
+<aside class="panel" id="panel" aria-label="Controls">
+  <button type="button" class="panel-grip" id="panelGrip" aria-expanded="true" aria-controls="panelBody">
+    <span class="grip-bar"></span>
+    Controls
+    <span class="chev"></span>
+  </button>
+  <div class="panel-body" id="panelBody">
+    <span class="field-label" id="effectLabel">Effect</span>
+    <div class="seg" role="group" aria-labelledby="effectLabel">
+      <button type="button" class="seg-btn is-active" data-effect="chars" aria-pressed="true">Characters</button>
+      <button type="button" class="seg-btn" data-effect="block" aria-pressed="false">Block</button>
+      <button type="button" class="seg-btn" data-effect="dither" aria-pressed="false">Dither</button>
+    </div>
+
+    <fieldset class="group" id="glyphGroup">
+      <legend>Glyphs</legend>
+      <label class="field-label" for="ramp">Ramp</label>
+      <select class="select" id="ramp">
+        <option value="standard">Standard</option>
+        <option value="classic">Classic ASCII</option>
+        <option value="dense">Dense</option>
+        <option value="blocks">Blocks</option>
+        <option value="binary">Binary</option>
+      </select>
+
+      <label class="switch-row" for="randomize">
+        <span>Randomize</span>
+        <input type="checkbox" id="randomize" data-flag="randomize">
+      </label>
+
+      <div class="range-head">
+        <label for="randomAmount">Amount</label>
+        <output id="randomAmountOut" for="randomAmount">40</output>
+      </div>
+      <input type="range" id="randomAmount" data-key="randomAmount" min="0" max="100" step="1" value="40">
+
+      <div class="range-head">
+        <label for="randomSeed">Seed</label>
+        <output id="randomSeedOut" for="randomSeed">7</output>
+      </div>
+      <input type="range" id="randomSeed" data-key="randomSeed" min="0" max="999" step="1" value="7">
+    </fieldset>
+
+    <fieldset class="group" id="toneGroup">
+      <legend>Tone</legend>
+
+      <div class="range-head">
+        <label for="size">Size</label>
+        <output id="sizeOut" for="size">11</output>
+      </div>
+      <input type="range" id="size" data-key="size" min="4" max="40" step="1" value="11">
+
+      <div class="range-head">
+        <label for="contrast">Contrast</label>
+        <output id="contrastOut" for="contrast">20</output>
+      </div>
+      <input type="range" id="contrast" data-key="contrast" min="-100" max="100" step="1" value="20">
+
+      <div class="range-head">
+        <label for="brightness">Brightness</label>
+        <output id="brightnessOut" for="brightness">0</output>
+      </div>
+      <input type="range" id="brightness" data-key="brightness" min="-100" max="100" step="1" value="0">
+
+      <div class="range-head">
+        <label for="coverage">Coverage</label>
+        <output id="coverageOut" for="coverage">100</output>
+      </div>
+      <input type="range" id="coverage" data-key="coverage" min="0" max="100" step="1" value="100">
+
+      <div class="range-head">
+        <label for="gamma">Gamma</label>
+        <output id="gammaOut" for="gamma">100</output>
+      </div>
+      <input type="range" id="gamma" data-key="gamma" min="30" max="300" step="1" value="100">
+
+      <label class="switch-row" for="invert">
+        <span>Invert</span>
+        <input type="checkbox" id="invert" data-flag="invert">
+      </label>
+    </fieldset>
+
+    <div class="palette-block">
+      <span class="field-label" id="paletteLabel">Palette</span>
+      <div class="seg" role="group" aria-labelledby="paletteLabel">
+        <button type="button" class="seg-btn is-active" data-palette="source" aria-pressed="true">Source</button>
+        <button type="button" class="seg-btn" data-palette="mono" aria-pressed="false">Mono</button>
+      </div>
+    </div>
+
+    <button type="button" class="btn-reset" id="resetBtn">Reset settings</button>
+  </div>
+</aside>
+
+<input type="file" id="fileInput" accept="image/*" hidden>
+<div id="toast" role="status" aria-live="polite" hidden></div>
+
+<script>
+(() => {
+  'use strict';
+
+  /* ---------- constants & utils ---------- */
+
+  const MAX_CELLS = 400000;
+  const MAX_SCALED_CELLS = 150000;
+  const MAX_EXPORT_SIDE = 8192;
+  const MAX_EXPORT_AREA = 16000000;
+
+  const RAMPS = [
+    { id: 'standard', label: 'Standard', chars: '@#S08Xx+=-;:.' },
+    { id: 'classic', label: 'Classic ASCII', chars: '@%#*+=-:. ' },
+    { id: 'dense', label: 'Dense', chars: 'Ñ@#W$9876543210?!abc;:+=-,._ ' },
+    { id: 'blocks', label: 'Blocks', chars: '█▓▒░ ' },
+    { id: 'binary', label: 'Binary', chars: '10 ' },
+  ];
+
+  const EFFECT_LABELS = { chars: 'characters', block: 'block', dither: 'dither' };
+
+  const DEFAULT_STATE = Object.freeze({
+    effect: 'chars',
+    ramp: 'standard',
+    chars: '@#S08Xx+=-;:.',
+    size: 11,
+    contrast: 20,
+    brightness: 0,
+    coverage: 100,
+    gamma: 100,
+    invert: false,
+    palette: 'source',
+    randomize: false,
+    randomAmount: 40,
+    randomSeed: 7,
+  });
+
+  const clamp = (value, min, max) => (value < min ? min : value > max ? max : value);
+
+  function rampById(id) {
+    return RAMPS.find((entry) => entry.id === id) || RAMPS[0];
+  }
+
+  function sourceSize(source) {
+    return { w: source.videoWidth || source.width, h: source.videoHeight || source.height };
+  }
+
+  function dateStamp() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    downloadUrl(url, filename);
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  }
+
+  function downloadUrl(url, filename) {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  }
+
+  const XML_ESCAPE = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' };
+  const escapeXml = (value) => String(value).replace(/[&<>"']/g, (char) => XML_ESCAPE[char]);
+  const fixed = (value) => String(Math.round(value * 100) / 100);
+
+  /* ---------- tone ---------- */
+
+  function makeTone(state) {
+    const gain = 1 + state.contrast / 100;
+    const lift = state.brightness / 100;
+    const gamma = Math.max(0.05, state.gamma / 100);
+    const lut = new Float32Array(256);
+
+    for (let i = 0; i < 256; i++) {
+      let v = (i / 255 - 0.5) * gain + 0.5 + lift;
+      v = v < 0 ? 0 : v > 1 ? 1 : v;
+      v = Math.pow(v, 1 / gamma);
+      v = v < 0 ? 0 : v > 1 ? 1 : v;
+      lut[i] = state.invert ? 1 - v : v;
+    }
+    return lut;
+  }
+
+  /* ---------- draw primitives ---------- */
+
+  const BAYER8 = [
+     0, 32,  8, 40,  2, 34, 10, 42,
+    48, 16, 56, 24, 50, 18, 58, 26,
+    12, 44,  4, 36, 14, 46,  6, 38,
+    60, 28, 52, 20, 62, 30, 54, 22,
+     3, 35, 11, 43,  1, 33,  9, 41,
+    51, 19, 59, 27, 49, 17, 57, 25,
+    15, 47,  7, 39, 13, 45,  5, 37,
+    63, 31, 55, 23, 61, 29, 53, 21,
+  ];
+
+  const sampler = document.createElement('canvas');
+  const samplerCtx = sampler.getContext('2d', { willReadFrequently: true });
+
+  function sample(image, width, height) {
+    const { w: iw, h: ih } = sourceSize(image);
+    sampler.width = Math.max(1, width);
+    sampler.height = Math.max(1, height);
+    samplerCtx.clearRect(0, 0, sampler.width, sampler.height);
+    samplerCtx.imageSmoothingEnabled = true;
+    samplerCtx.imageSmoothingQuality = 'high';
+    samplerCtx.drawImage(image, 0, 0, iw, ih, 0, 0, sampler.width, sampler.height);
+    return samplerCtx.getImageData(0, 0, sampler.width, sampler.height).data;
+  }
+
+  function colorFor(state, r, g, b, luma) {
+    if (state.palette === 'mono') {
+      const v = Math.round(16 + luma * 224);
+      return `rgb(${v},${v},${v})`;
+    }
+    return `rgb(${r | 0},${g | 0},${b | 0})`;
+  }
+
+  function cellNoise(col, row, seed) {
+    let h = Math.imul(col + 0x9e3779b9, 0x85ebca6b) ^ Math.imul(row + 0x7f4a7c15, 0xc2b2ae35) ^ Math.imul(seed + 1, 0x27d4eb2f);
+    h = Math.imul(h ^ (h >>> 15), 0x2c1b3c6d);
+    h ^= h >>> 12;
+    return (h >>> 0) / 4294967296;
+  }
+
+  function glyphAt(state, chars, last, luma, col, row) {
+    let index = (1 - luma) * last;
+    if (state.randomize && state.randomAmount > 0) {
+      const spread = (state.randomAmount / 100) * (last + 1);
+      index += (cellNoise(col, row, state.randomSeed) - 0.5) * spread;
+    }
+    return chars[Math.min(last, Math.max(0, index)) | 0];
+  }
+
+  function drawCharacters(ctx, image, state, tone, threshold, grid) {
+    const { cols, rows, cellW, cellH, font } = grid;
+    const pixels = sample(image, cols, rows);
+    const chars = Array.from(state.chars || ' ');
+    const last = chars.length - 1;
+    const halfW = cellW / 2;
+    const halfH = cellH / 2;
+
+    ctx.font = font;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    for (let row = 0; row < rows; row++) {
+      const y = row * cellH + halfH;
+      for (let col = 0; col < cols; col++) {
+        const offset = (row * cols + col) * 4;
+        if (pixels[offset + 3] < 8) continue;
+
+        const r = pixels[offset];
+        const g = pixels[offset + 1];
+        const b = pixels[offset + 2];
+        const luma = tone[(0.299 * r + 0.587 * g + 0.114 * b) | 0];
+        if (luma < threshold) continue;
+
+        const glyph = glyphAt(state, chars, last, luma, col, row);
+        if (glyph === ' ') continue;
+
+        ctx.fillStyle = colorFor(state, r, g, b, luma);
+        ctx.fillText(glyph, col * cellW + halfW, y);
+      }
+    }
+  }
+
+  function drawDither(ctx, image, state, tone, threshold, grid) {
+    const { cols, rows, cellW, cellH } = grid;
+    const sw = cols * 2;
+    const sh = rows * 2;
+    const pixels = sample(image, sw, sh);
+    const dw = cellW / 2;
+    const dh = cellH / 2;
+
+    for (let y = 0; y < sh; y++) {
+      for (let x = 0; x < sw; x++) {
+        const offset = (y * sw + x) * 4;
+        if (pixels[offset + 3] < 8) continue;
+
+        const r = pixels[offset];
+        const g = pixels[offset + 1];
+        const b = pixels[offset + 2];
+        const luma = tone[(0.299 * r + 0.587 * g + 0.114 * b) | 0];
+        if (luma < threshold) continue;
+        if (luma < BAYER8[(y & 7) * 8 + (x & 7)] / 64) continue;
+
+        ctx.fillStyle = colorFor(state, r, g, b, luma);
+        ctx.fillRect(x * dw, y * dh, dw + 0.6, dh + 0.6);
+      }
+    }
+  }
+
+  function drawBlock(ctx, image, state, tone, threshold, grid) {
+    const { cols, rows, cellW, cellH } = grid;
+    const pixels = sample(image, cols, rows);
+    const gap = Math.min(2, cellW * 0.08);
+
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const offset = (row * cols + col) * 4;
+        if (pixels[offset + 3] < 8) continue;
+
+        const r = pixels[offset];
+        const g = pixels[offset + 1];
+        const b = pixels[offset + 2];
+        const luma = tone[(0.299 * r + 0.587 * g + 0.114 * b) | 0];
+        if (luma < threshold) continue;
+
+        ctx.fillStyle = colorFor(state, r, g, b, luma);
+        ctx.fillRect(
+          col * cellW + gap / 2,
+          row * cellH + gap / 2,
+          cellW - gap + 0.5,
+          cellH - gap + 0.5,
+        );
+      }
+    }
+  }
+
+  /* ---------- renderers ---------- */
+
+  function renderAscii(canvas, image, state, outWidth, outHeight, unit) {
+    const started = performance.now();
+
+    const width = Math.max(1, Math.round(outWidth));
+    const height = Math.max(1, Math.round(outHeight));
+    if (canvas.width !== width) canvas.width = width;
+    if (canvas.height !== height) canvas.height = height;
+
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.shadowBlur = 0;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const effect = state.effect || 'chars';
+    const scaled = effect === 'dither';
+    const fontPx = Math.max(3, state.size * unit);
+    const font = `${fontPx}px ui-monospace, "SF Mono", Menlo, monospace`;
+
+    ctx.font = font;
+    let cellW = Math.max(2, ctx.measureText('M').width);
+    let cellH = fontPx;
+    const cap = scaled ? MAX_SCALED_CELLS : MAX_CELLS;
+    let cols = Math.max(1, Math.floor(canvas.width / cellW));
+    let rows = Math.max(1, Math.floor(canvas.height / cellH));
+
+    while (cols * rows > cap) {
+      cellW *= 1.08;
+      cellH *= 1.08;
+      cols = Math.max(1, Math.floor(canvas.width / cellW));
+      rows = Math.max(1, Math.floor(canvas.height / cellH));
+    }
+
+    if (!image) {
+      return { cols, rows, ms: performance.now() - started };
+    }
+
+    const tone = makeTone(state);
+    const threshold = ((100 - state.coverage) / 100) * 0.85;
+    const grid = { cols, rows, cellW, cellH, font, fontPx };
+
+    if (effect === 'dither') drawDither(ctx, image, state, tone, threshold, grid);
+    else if (effect === 'block') drawBlock(ctx, image, state, tone, threshold, grid);
+    else drawCharacters(ctx, image, state, tone, threshold, grid);
+
+    return { cols, rows, ms: performance.now() - started };
+  }
+
+  let svgFontCtx = null;
+  function measureSvgCell(font) {
+    if (!svgFontCtx) {
+      svgFontCtx = document.createElement('canvas').getContext('2d');
+    }
+    svgFontCtx.font = font;
+    return svgFontCtx.measureText('M').width;
+  }
+
+  function renderSvg(image, state, outWidth, outHeight, unit) {
+    const width = Math.max(1, Math.round(outWidth));
+    const height = Math.max(1, Math.round(outHeight));
+    const effect = state.effect || 'chars';
+    const scaled = effect === 'dither';
+    const fontPx = Math.max(3, state.size * unit);
+    const font = `${fontPx}px ui-monospace, "SF Mono", Menlo, monospace`;
+    const cap = scaled ? MAX_SCALED_CELLS : MAX_CELLS;
+
+    let cellW = Math.max(2, measureSvgCell(font));
+    let cellH = fontPx;
+    let cols = Math.max(1, Math.floor(width / cellW));
+    let rows = Math.max(1, Math.floor(height / cellH));
+    while (cols * rows > cap) {
+      cellW *= 1.08;
+      cellH *= 1.08;
+      cols = Math.max(1, Math.floor(width / cellW));
+      rows = Math.max(1, Math.floor(height / cellH));
+    }
+
+    const title = `ASCII mini — ${EFFECT_LABELS[effect] || effect} · ${cols}×${rows} cells`;
+    const parts = [];
+    parts.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img">`);
+    parts.push(`<title>${escapeXml(title)}</title>`);
+    parts.push(`<rect width="${width}" height="${height}" fill="#000"/>`);
+
+    if (image) {
+      const tone = makeTone(state);
+      const threshold = ((100 - state.coverage) / 100) * 0.85;
+      const textGroup = effect === 'chars';
+
+      parts.push('<g>');
+      if (textGroup) {
+        parts.push(`<g font-family="ui-monospace, 'SF Mono', Menlo, monospace" font-size="${fixed(fontPx)}" text-anchor="middle" dominant-baseline="central">`);
+      }
+
+      if (effect === 'dither') {
+        const sw = cols * 2;
+        const sh = rows * 2;
+        const pixels = sample(image, sw, sh);
+        const dw = cellW / 2;
+        const dh = cellH / 2;
+        for (let y = 0; y < sh; y++) {
+          for (let x = 0; x < sw; x++) {
+            const offset = (y * sw + x) * 4;
+            if (pixels[offset + 3] < 8) continue;
+            const r = pixels[offset];
+            const g = pixels[offset + 1];
+            const b = pixels[offset + 2];
+            const luma = tone[(0.299 * r + 0.587 * g + 0.114 * b) | 0];
+            if (luma < threshold) continue;
+            if (luma < BAYER8[(y & 7) * 8 + (x & 7)] / 64) continue;
+            parts.push(`<rect x="${fixed(x * dw)}" y="${fixed(y * dh)}" width="${fixed(dw + 0.2)}" height="${fixed(dh + 0.2)}" fill="${colorFor(state, r, g, b, luma)}"/>`);
+          }
+        }
+      } else if (effect === 'block') {
+        const pixels = sample(image, cols, rows);
+        const gap = Math.min(2, cellW * 0.08);
+        for (let row = 0; row < rows; row++) {
+          for (let col = 0; col < cols; col++) {
+            const offset = (row * cols + col) * 4;
+            if (pixels[offset + 3] < 8) continue;
+            const r = pixels[offset];
+            const g = pixels[offset + 1];
+            const b = pixels[offset + 2];
+            const luma = tone[(0.299 * r + 0.587 * g + 0.114 * b) | 0];
+            if (luma < threshold) continue;
+            parts.push(`<rect x="${fixed(col * cellW + gap / 2)}" y="${fixed(row * cellH + gap / 2)}" width="${fixed(cellW - gap)}" height="${fixed(cellH - gap)}" fill="${colorFor(state, r, g, b, luma)}"/>`);
+          }
+        }
+      } else {
+        const pixels = sample(image, cols, rows);
+        const chars = Array.from(state.chars || ' ');
+        const last = chars.length - 1;
+        for (let row = 0; row < rows; row++) {
+          for (let col = 0; col < cols; col++) {
+            const offset = (row * cols + col) * 4;
+            if (pixels[offset + 3] < 8) continue;
+            const r = pixels[offset];
+            const g = pixels[offset + 1];
+            const b = pixels[offset + 2];
+            const luma = tone[(0.299 * r + 0.587 * g + 0.114 * b) | 0];
+            if (luma < threshold) continue;
+            const glyph = glyphAt(state, chars, last, luma, col, row);
+            if (glyph === ' ') continue;
+            parts.push(`<text x="${fixed(col * cellW + cellW / 2)}" y="${fixed(row * cellH + cellH / 2)}" fill="${colorFor(state, r, g, b, luma)}">${escapeXml(glyph)}</text>`);
+          }
+        }
+      }
+
+      if (textGroup) parts.push('</g>');
+      parts.push('</g>');
+    }
+
+    parts.push('</svg>');
+    return { svg: parts.join('\n'), cols, rows };
+  }
+
+  /* ---------- viewport ---------- */
+
+  const canvas = document.getElementById('canvas');
+  const stage = document.getElementById('stage');
+  const viewport = document.getElementById('viewport');
+  const empty = document.getElementById('empty');
+  const dropVeil = document.getElementById('dropVeil');
+  const panel = document.getElementById('panel');
+  const panelGrip = document.getElementById('panelGrip');
+  const glyphGroup = document.getElementById('glyphGroup');
+  const rampSelect = document.getElementById('ramp');
+  const resetBtn = document.getElementById('resetBtn');
+  const fileInput = document.getElementById('fileInput');
+  const pngMenu = document.getElementById('pngMenu');
+  const toast = document.getElementById('toast');
+
+  const state = { ...DEFAULT_STATE };
+  const view = { x: 0, y: 0, z: 1 };
+  const ZOOM_MIN = 0.25;
+  const ZOOM_MAX = 8;
+
+  let image = null;
+  let imageUrl = '';
+  let imageLoadToken = 0;
+  let baseW = 0;
+  let baseH = 0;
+  let dirty = false;
+  let toastTimer = 0;
+
+  function contentBox() {
+    const rect = viewport.getBoundingClientRect();
+    const cs = getComputedStyle(viewport);
+    const pl = parseFloat(cs.paddingLeft) || 0;
+    const pr = parseFloat(cs.paddingRight) || 0;
+    const pt = parseFloat(cs.paddingTop) || 0;
+    const pb = parseFloat(cs.paddingBottom) || 0;
+    const w = Math.max(80, rect.width - pl - pr);
+    const h = Math.max(80, rect.height - pt - pb);
+    return {
+      x: rect.left + pl,
+      y: rect.top + pt,
+      w,
+      h,
+      cx: rect.left + pl + w / 2,
+      cy: rect.top + pt + h / 2,
+    };
+  }
+
+  function fitCanvas() {
+    if (!image) return;
+    const { w: srcW, h: srcH } = sourceSize(image);
+    const box = contentBox();
+    const scale = Math.min((box.w - 16) / srcW, (box.h - 16) / srcH);
+    baseW = Math.max(24, Math.round(srcW * scale));
+    baseH = Math.max(24, Math.round(srcH * scale));
+    canvas.style.width = `${baseW}px`;
+    canvas.style.height = `${baseH}px`;
+  }
+
+  function applyView() {
+    canvas.style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.z})`;
+  }
+
+  function resetView() {
+    view.x = 0;
+    view.y = 0;
+    view.z = 1;
+    applyView();
+  }
+
+  function zoomAt(clientX, clientY, next) {
+    const z = clamp(next, ZOOM_MIN, ZOOM_MAX);
+    if (!image) return;
+    const box = contentBox();
+    const px = clientX - box.cx;
+    const py = clientY - box.cy;
+    view.x = px - (px - view.x) * (z / view.z);
+    view.y = py - (py - view.y) * (z / view.z);
+    view.z = z;
+    applyView();
+  }
+
+  function zoomAtCenter(factor) {
+    const box = contentBox();
+    zoomAt(box.cx, box.cy, view.z * factor);
+  }
+
+  function dpr() {
+    return Math.min(2, window.devicePixelRatio || 1);
+  }
+
+  /* ---------- scheduler ---------- */
+
+  function requestRender() {
+    if (dirty) return;
+    dirty = true;
+    requestAnimationFrame(() => {
+      dirty = false;
+      renderPreview();
+    });
+  }
+
+  function paintIdle() {
+    canvas.hidden = true;
+    canvas.setAttribute('aria-label', 'ASCII preview. Open an image or try the demo.');
+  }
+
+  function renderPreview() {
+    if (!image) {
+      paintIdle();
+      return;
+    }
+    const scale = dpr();
+    try {
+      const result = renderAscii(
+        canvas,
+        image,
+        state,
+        Math.round(baseW * scale),
+        Math.round(baseH * scale),
+        scale,
+      );
+      canvas.setAttribute(
+        'aria-label',
+        `ASCII preview, ${EFFECT_LABELS[state.effect] || state.effect} effect, ${result.cols} by ${result.rows} cells`,
+      );
+    } catch (error) {
+      showToast('Could not read this image. If it was opened locally, serve the page over http://', 'error');
+    }
+  }
+
+  /* ---------- images ---------- */
+
+  function setImage(source, url = '') {
+    const previous = image;
+    if (imageUrl) URL.revokeObjectURL(imageUrl);
+    imageUrl = url;
+    image = source;
+    empty.hidden = true;
+    canvas.hidden = false;
+    resetView();
+    fitCanvas();
+    requestRender();
+    if (previous && previous !== source && typeof previous.close === 'function') {
+      previous.close();
+    }
+  }
+
+  async function loadImage(file) {
+    if (!file) return;
+    if (!file.type || !file.type.startsWith('image/')) {
+      showToast('That file is not an image', 'error');
+      return;
+    }
+
+    const token = ++imageLoadToken;
+
+    try {
+      if (typeof createImageBitmap === 'function') {
+        const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+        if (token !== imageLoadToken) {
+          if (typeof bitmap.close === 'function') bitmap.close();
+          return;
+        }
+        setImage(bitmap);
+        showToast('Image loaded');
+        return;
+      }
+    } catch (error) {
+      // Fall through to the <img> path (older Safari, file:// quirks).
+    }
+
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.decoding = 'async';
+    img.onload = () => {
+      if (token !== imageLoadToken) {
+        URL.revokeObjectURL(url);
+        return;
+      }
+      setImage(img, url);
+      showToast('Image loaded');
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      if (token === imageLoadToken) showToast('Could not load that image', 'error');
+    };
+    img.src = url;
+  }
+
+  function mulberry32(seed) {
+    let a = seed >>> 0;
+    return () => {
+      a = (a + 0x6d2b79f5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function makeDemoImage() {
+    const demo = document.createElement('canvas');
+    demo.width = 1400;
+    demo.height = 900;
+    const ctx = demo.getContext('2d');
+    const random = mulberry32(275);
+
+    const sky = ctx.createLinearGradient(0, 0, 0, 900);
+    sky.addColorStop(0, '#05010c');
+    sky.addColorStop(0.55, '#2b0a3e');
+    sky.addColorStop(1, '#0b0208');
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, 1400, 900);
+
+    const sun = ctx.createRadialGradient(700, 470, 10, 700, 470, 520);
+    sun.addColorStop(0, '#fff6d8');
+    sun.addColorStop(0.18, '#ffcf6b');
+    sun.addColorStop(0.55, '#ff6a3d');
+    sun.addColorStop(1, 'rgba(80, 10, 40, 0)');
+    ctx.fillStyle = sun;
+    ctx.beginPath();
+    ctx.arc(700, 470, 520, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = 'rgba(255, 240, 220, 0.16)';
+    for (let i = 0; i < 12; i++) {
+      ctx.beginPath();
+      ctx.ellipse(700, 470, 180 + i * 46, 60 + i * 22, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    for (let i = 0; i < 420; i++) {
+      const x = random() * 1400;
+      const y = random() * 420;
+      ctx.fillStyle = `rgba(255,255,255,${random() * 0.8})`;
+      ctx.fillRect(x, y, 1.5, 1.5);
+    }
+
+    return demo;
+  }
+
+  function showToast(message, kind = 'ok') {
+    toast.textContent = message;
+    toast.dataset.kind = kind;
+    toast.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      toast.hidden = true;
+    }, kind === 'error' ? 6000 : 2500);
+  }
+
+  /* ---------- controls ---------- */
+
+  function syncControls() {
+    for (const button of panel.querySelectorAll('[data-effect]')) {
+      const active = button.dataset.effect === state.effect;
+      button.classList.toggle('is-active', active);
+      button.setAttribute('aria-pressed', String(active));
+    }
+    for (const button of panel.querySelectorAll('[data-palette]')) {
+      const active = button.dataset.palette === state.palette;
+      button.classList.toggle('is-active', active);
+      button.setAttribute('aria-pressed', String(active));
+    }
+
+    rampSelect.value = state.ramp;
+    glyphGroup.disabled = state.effect !== 'chars';
+
+    for (const input of panel.querySelectorAll('input[data-key]')) {
+      const key = input.dataset.key;
+      input.value = state[key];
+      const output = document.getElementById(`${input.id}Out`);
+      if (output) output.textContent = String(state[key]);
+    }
+    for (const input of panel.querySelectorAll('input[data-flag]')) {
+      input.checked = Boolean(state[input.dataset.flag]);
+    }
+  }
+
+  function updateRange(match) {
+    const key = match.dataset.key;
+    if (!key) return;
+    state[key] = Number(match.value);
+    const output = document.getElementById(`${match.id}Out`);
+    if (output) output.textContent = match.value;
+    requestRender();
+  }
+
+  function resetSettings() {
+    Object.assign(state, DEFAULT_STATE);
+    state.chars = rampById(state.ramp).chars;
+    syncControls();
+    if (image) {
+      resetView();
+      fitCanvas();
+    }
+    requestRender();
+    showToast('Settings reset');
+  }
+
+  /* ---------- exports ---------- */
+
+  function renderExport(scale) {
+    let targetW = Math.min(Math.round(baseW * scale), MAX_EXPORT_SIDE);
+    let unit = targetW / baseW;
+    let outW = Math.round(baseW * unit);
+    let outH = Math.round(baseH * unit);
+
+    if (outW * outH > MAX_EXPORT_AREA) {
+      const shrink = Math.sqrt(MAX_EXPORT_AREA / (outW * outH));
+      outW = Math.max(1, Math.floor(outW * shrink));
+      outH = Math.max(1, Math.floor(outH * shrink));
+      unit = outW / baseW;
+    }
+
+    const target = document.createElement('canvas');
+    const result = renderAscii(target, image, state, outW, outH, unit);
+    return { canvas: target, cols: result.cols, rows: result.rows };
+  }
+
+  function exportName(ext, cols, rows) {
+    return `ascii-mini-${dateStamp()}-${state.effect}-${cols}x${rows}.${ext}`;
+  }
+
+  async function exportRaster(scale, type, quality, ext) {
+    if (!image || !baseW) {
+      showToast('Open an image first', 'error');
+      return;
+    }
+    try {
+      const output = renderExport(scale);
+      const name = exportName(ext, output.cols, output.rows);
+      let blob = null;
+      try {
+        blob = await new Promise((resolve) => output.canvas.toBlob(resolve, type, quality));
+      } catch (error) {
+        blob = null;
+      }
+
+      if (blob) {
+        downloadBlob(blob, name);
+      } else {
+        downloadUrl(output.canvas.toDataURL(type, quality), name);
+      }
+      showToast(`${ext.toUpperCase()} saved`);
+    } catch (error) {
+      showToast('Export failed. If you opened this file locally, serve it over http://', 'error');
+    }
+  }
+
+  function exportSvg() {
+    if (!image || !baseW) {
+      showToast('Open an image first', 'error');
+      return;
+    }
+    try {
+      const result = renderSvg(image, state, baseW, baseH, 1);
+      const name = exportName('svg', result.cols, result.rows);
+      downloadBlob(new Blob([result.svg], { type: 'image/svg+xml' }), name);
+      showToast('SVG saved');
+    } catch (error) {
+      showToast('SVG export failed', 'error');
+    }
+  }
+
+  /* ---------- interaction ---------- */
+
+  function bindControls() {
+    panel.addEventListener('input', (event) => {
+      const target = event.target;
+      if (target instanceof HTMLInputElement && target.type === 'range') updateRange(target);
+    });
+
+    panel.addEventListener('change', (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement)) return;
+
+      if (target === rampSelect) {
+        state.ramp = target.value;
+        state.chars = rampById(state.ramp).chars;
+        requestRender();
+      } else if (target instanceof HTMLInputElement && target.type === 'checkbox') {
+        const key = target.dataset.flag;
+        if (key) {
+          state[key] = target.checked;
+          requestRender();
+        }
+      }
+    });
+
+    panel.addEventListener('click', (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+
+      const effectButton = target.closest('[data-effect]');
+      if (effectButton) {
+        state.effect = effectButton.dataset.effect;
+        syncControls();
+        requestRender();
+        return;
+      }
+
+      const paletteButton = target.closest('[data-palette]');
+      if (paletteButton) {
+        state.palette = paletteButton.dataset.palette;
+        syncControls();
+        requestRender();
+        return;
+      }
+
+      if (target.closest('#resetBtn')) resetSettings();
+    });
+
+    panelGrip.addEventListener('click', () => {
+      const collapsed = panel.classList.toggle('is-collapsed');
+      panelGrip.setAttribute('aria-expanded', String(!collapsed));
+    });
+  }
+
+  function bindActions() {
+    document.addEventListener('click', (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+
+      const actionEl = target.closest('[data-action]');
+      if (actionEl) {
+        const action = actionEl.dataset.action;
+        if (action === 'open') {
+          fileInput.click();
+        } else if (action === 'demo') {
+          setImage(makeDemoImage());
+          showToast('Demo loaded');
+        } else if (action === 'png1') {
+          pngMenu.open = false;
+          exportRaster(1, 'image/png', undefined, 'png');
+        } else if (action === 'png2') {
+          pngMenu.open = false;
+          exportRaster(2, 'image/png', undefined, 'png');
+        } else if (action === 'jpg') {
+          exportRaster(2, 'image/jpeg', 0.92, 'jpg');
+        } else if (action === 'svg') {
+          exportSvg();
+        }
+      }
+
+      if (!pngMenu.contains(target)) pngMenu.open = false;
+    });
+
+    fileInput.addEventListener('change', () => {
+      const file = fileInput.files && fileInput.files[0];
+      fileInput.value = '';
+      if (file) loadImage(file);
+    });
+  }
+
+  function bindDrop() {
+    let depth = 0;
+    const hasFiles = (event) => {
+      const types = event.dataTransfer && event.dataTransfer.types;
+      return types ? Array.from(types).includes('Files') : false;
+    };
+
+    window.addEventListener('dragenter', (event) => {
+      if (!hasFiles(event)) return;
+      event.preventDefault();
+      depth += 1;
+      dropVeil.hidden = false;
+    });
+
+    window.addEventListener('dragover', (event) => {
+      if (!hasFiles(event)) return;
+      event.preventDefault();
+    });
+
+    window.addEventListener('dragleave', (event) => {
+      if (depth === 0) return;
+      event.preventDefault();
+      depth = Math.max(0, depth - 1);
+      if (depth === 0) dropVeil.hidden = true;
+    });
+
+    window.addEventListener('drop', (event) => {
+      event.preventDefault();
+      depth = 0;
+      dropVeil.hidden = true;
+      const file = event.dataTransfer && event.dataTransfer.files ? event.dataTransfer.files[0] : null;
+      if (file) loadImage(file);
+    });
+  }
+
+  function bindStage() {
+    stage.addEventListener(
+      'wheel',
+      (event) => {
+        if (!image) return;
+        event.preventDefault();
+        zoomAt(event.clientX, event.clientY, view.z * Math.exp(-event.deltaY * 0.0015));
+      },
+      { passive: false },
+    );
+
+    const pointers = new Map();
+    let drag = null;
+    let pinch = null;
+
+    const pinchInfo = () => {
+      const [a, b] = [...pointers.values()];
+      return {
+        dist: Math.hypot(b.x - a.x, b.y - a.y) || 1,
+        mx: (a.x + b.x) / 2,
+        my: (a.y + b.y) / 2,
+      };
+    };
+
+    canvas.addEventListener('pointerdown', (event) => {
+      if (!image) return;
+      pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      try {
+        canvas.setPointerCapture(event.pointerId);
+      } catch (error) {
+        // Synthetic pointers cannot be captured.
+      }
+
+      if (pointers.size === 1) {
+        drag = { x: event.clientX, y: event.clientY, vx: view.x, vy: view.y };
+        pinch = null;
+      } else if (pointers.size === 2) {
+        drag = null;
+        pinch = pinchInfo();
+      }
+    });
+
+    canvas.addEventListener('pointermove', (event) => {
+      if (!pointers.has(event.pointerId)) return;
+      pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+
+      if (pointers.size >= 2 && pinch) {
+        const next = pinchInfo();
+        zoomAt(next.mx, next.my, view.z * (next.dist / pinch.dist));
+        view.x += next.mx - pinch.mx;
+        view.y += next.my - pinch.my;
+        applyView();
+        pinch = next;
+      } else if (drag) {
+        view.x = drag.vx + (event.clientX - drag.x);
+        view.y = drag.vy + (event.clientY - drag.y);
+        applyView();
+      }
+    });
+
+    const endPointer = (event) => {
+      if (!pointers.has(event.pointerId)) return;
+      pointers.delete(event.pointerId);
+      try {
+        canvas.releasePointerCapture(event.pointerId);
+      } catch (error) {
+        // Already released.
+      }
+
+      if (pointers.size === 1) {
+        const point = [...pointers.values()][0];
+        drag = { x: point.x, y: point.y, vx: view.x, vy: view.y };
+        pinch = null;
+      } else if (pointers.size === 0) {
+        drag = null;
+        pinch = null;
+      } else {
+        pinch = pinchInfo();
+      }
+    };
+
+    canvas.addEventListener('pointerup', endPointer);
+    canvas.addEventListener('pointercancel', endPointer);
+    canvas.addEventListener('dblclick', (event) => {
+      event.preventDefault();
+      if (image) resetView();
+    });
+
+    window.addEventListener('keydown', (event) => {
+      const target = event.target;
+      const typing =
+        target instanceof HTMLElement &&
+        (target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+
+      if (event.key === 'Escape') {
+        pngMenu.open = false;
+        dropVeil.hidden = true;
+        return;
+      }
+      if (typing) return;
+
+      const key = event.key.toLowerCase();
+      if (key === 'o') {
+        event.preventDefault();
+        fileInput.click();
+      } else if (event.key === '+' || event.key === '=') {
+        if (!image) return;
+        event.preventDefault();
+        zoomAtCenter(1.25);
+      } else if (event.key === '-' || event.key === '_') {
+        if (!image) return;
+        event.preventDefault();
+        zoomAtCenter(1 / 1.25);
+      } else if (key === '0' || key === 'f') {
+        if (!image) return;
+        event.preventDefault();
+        resetView();
+      }
+    });
+  }
+
+  function bindResize() {
+    window.addEventListener('resize', () => {
+      if (image) fitCanvas();
+      requestRender();
+    });
+  }
+
+  /* ---------- init ---------- */
+
+  function init() {
+    bindControls();
+    bindActions();
+    bindDrop();
+    bindStage();
+    bindResize();
+    syncControls();
+    paintIdle();
+
+    if (window.matchMedia('(max-width: 760px)').matches) {
+      panel.classList.add('is-collapsed');
+      panelGrip.setAttribute('aria-expanded', 'false');
+    }
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>

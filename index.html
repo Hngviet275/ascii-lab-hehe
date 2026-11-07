@@ -412,11 +412,13 @@
   .color-row {
     display: flex;
     align-items: center;
-    gap: 16px;
+    justify-content: space-between;
+    gap: 12px;
     margin-top: 9px;
   }
 
-  .color-field {
+  .color-field,
+  .toggle-inline {
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -424,6 +426,16 @@
     color: var(--muted);
     cursor: pointer;
   }
+
+  .toggle-inline input {
+    width: 15px;
+    height: 15px;
+    margin: 0;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+
+  .toggle-inline:has(input:disabled) { opacity: 0.4; pointer-events: none; }
 
   input[type="color"] {
     width: 38px;
@@ -740,13 +752,13 @@
 
       <div class="color-row">
         <label class="color-field" for="bgColor">BG <input type="color" id="bgColor" data-color="bg" value="#000000"></label>
-        <label class="color-field" for="tintColor">Tint <input type="color" id="tintColor" data-color="tintColor" value="#7dd3fc" disabled></label>
+        <label class="toggle-inline" for="bgTransparent"><input type="checkbox" id="bgTransparent" data-flag="bgTransparent"> Transparent</label>
       </div>
 
-      <label class="switch-row" for="bgTransparent">
-        <span>Transparent background</span>
-        <input type="checkbox" id="bgTransparent" data-flag="bgTransparent">
-      </label>
+      <div class="color-row">
+        <label class="color-field" for="tintColor">Tint <input type="color" id="tintColor" data-color="tintColor" value="#7dd3fc" disabled></label>
+        <label class="toggle-inline" for="backdrop" title="Blurred, dimmed source image behind the glyphs"><input type="checkbox" id="backdrop" data-flag="backdrop"> Backdrop</label>
+      </div>
     </div>
 
     <button type="button" class="btn-reset" id="resetBtn">Reset settings</button>
@@ -791,6 +803,7 @@
     bg: '#000000',
     bgTransparent: false,
     tintColor: '#7dd3fc',
+    backdrop: false,
     randomize: false,
     randomAmount: 40,
     randomSeed: 7,
@@ -992,6 +1005,38 @@
     return (r, g, b) => `rgb(${r | 0},${g | 0},${b | 0})`;
   }
 
+  function hexToRgba(hex, alpha) {
+    const { r, g, b } = hexRgb(hex);
+    return `rgba(${r},${g},${b},${alpha})`;
+  }
+
+  function drawCover(ctx, source, width, height) {
+    const { w: iw, h: ih } = sourceSize(source);
+    const scale = Math.max(width / iw, height / ih);
+    const w = iw * scale;
+    const h = ih * scale;
+    ctx.drawImage(source, (width - w) / 2, (height - h) / 2, w, h);
+  }
+
+  function paintBackdrop(ctx, image, state, width, height, fontPx) {
+    const backdrop = Boolean(state.backdrop && image);
+    if (!state.bgTransparent || backdrop) {
+      ctx.fillStyle = state.bg;
+      ctx.fillRect(0, 0, width, height);
+    }
+    if (!backdrop) return;
+
+    ctx.save();
+    if (typeof ctx.filter === 'string') {
+      ctx.filter = `blur(${Math.max(4, fontPx * 1.4)}px)`;
+    }
+    drawCover(ctx, image, width, height);
+    ctx.filter = 'none';
+    ctx.fillStyle = hexToRgba(state.bg, 0.45);
+    ctx.fillRect(0, 0, width, height);
+    ctx.restore();
+  }
+
   function cellNoise(col, row, seed) {
     let h = Math.imul(col + 0x9e3779b9, 0x85ebca6b) ^ Math.imul(row + 0x7f4a7c15, 0xc2b2ae35) ^ Math.imul(seed + 1, 0x27d4eb2f);
     h = Math.imul(h ^ (h >>> 15), 0x2c1b3c6d);
@@ -1112,16 +1157,13 @@
     ctx.globalCompositeOperation = 'source-over';
     ctx.shadowBlur = 0;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    if (!state.bgTransparent) {
-      ctx.fillStyle = state.bg;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-    }
 
     const effect = state.effect || 'chars';
     const scaled = effect === 'dither';
     const fontPx = Math.max(3, state.size * unit);
     const font = `${fontPx}px ui-monospace, "SF Mono", Menlo, monospace`;
 
+    paintBackdrop(ctx, image, state, canvas.width, canvas.height, fontPx);
     ctx.font = font;
     let cellW = Math.max(2, ctx.measureText('M').width);
     let cellH = fontPx;
@@ -1160,6 +1202,17 @@
     return svgFontCtx.measureText('M').width;
   }
 
+  function backdropDataUrl(source, width, height) {
+    const scale = Math.min(1, 1400 / Math.max(width, height));
+    const w = Math.max(1, Math.round(width * scale));
+    const h = Math.max(1, Math.round(height * scale));
+    const thumb = document.createElement('canvas');
+    thumb.width = w;
+    thumb.height = h;
+    drawCover(thumb.getContext('2d'), source, w, h);
+    return thumb.toDataURL('image/jpeg', 0.82);
+  }
+
   function renderSvg(image, state, outWidth, outHeight, unit) {
     const width = Math.max(1, Math.round(outWidth));
     const height = Math.max(1, Math.round(outHeight));
@@ -1184,7 +1237,12 @@
     const parts = [];
     parts.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img">`);
     parts.push(`<title>${escapeXml(title)}</title>`);
-    if (!state.bgTransparent) {
+    if (state.backdrop && image) {
+      const blur = fixed(Math.max(4, state.size * 1.4));
+      parts.push(`<defs><filter id="bgblur" x="-15%" y="-15%" width="130%" height="130%"><feGaussianBlur stdDeviation="${blur}"/></filter></defs>`);
+      parts.push(`<image href="${backdropDataUrl(image, width, height)}" x="0" y="0" width="${width}" height="${height}" preserveAspectRatio="xMidYMid slice" filter="url(#bgblur)"/>`);
+      parts.push(`<rect width="${width}" height="${height}" fill="${escapeXml(state.bg)}" opacity="0.45"/>`);
+    } else if (!state.bgTransparent) {
       parts.push(`<rect width="${width}" height="${height}" fill="${escapeXml(state.bg)}"/>`);
     }
 
@@ -1275,6 +1333,7 @@
   const presetSelect = document.getElementById('preset');
   const bgColor = document.getElementById('bgColor');
   const tintColor = document.getElementById('tintColor');
+  const transparentToggle = document.getElementById('bgTransparent');
   const resetBtn = document.getElementById('resetBtn');
   const fileInput = document.getElementById('fileInput');
   const exportMenu = document.getElementById('exportMenu');
@@ -1367,7 +1426,7 @@
   }
 
   function applyCanvasLook() {
-    const transparent = Boolean(state.bgTransparent);
+    const transparent = Boolean(state.bgTransparent && !state.backdrop);
     canvas.classList.toggle('is-transparent', transparent);
     canvas.style.background = transparent ? '' : state.bg;
   }
@@ -1534,8 +1593,10 @@
   function applyPreset(id) {
     const preset = PRESETS[id];
     if (!preset) return;
+    const backdrop = state.backdrop;
     Object.assign(state, DEFAULT_STATE, preset);
     state.chars = rampById(state.ramp).chars;
+    state.backdrop = backdrop;
     state.preset = id;
     syncControls();
     requestRender();
@@ -1548,6 +1609,7 @@
     tintColor.value = state.tintColor;
     bgColor.disabled = Boolean(state.bgTransparent);
     tintColor.disabled = state.palette !== 'tint';
+    transparentToggle.disabled = Boolean(state.backdrop);
     applyCanvasLook();
 
     for (const button of panel.querySelectorAll('[data-effect]')) {
@@ -1818,8 +1880,9 @@
         const key = target.dataset.flag;
         if (key) {
           state[key] = target.checked;
+          if (key === 'backdrop' && state.backdrop) state.bgTransparent = false;
           markCustom();
-          if (key === 'bgTransparent') syncControls();
+          if (key === 'bgTransparent' || key === 'backdrop') syncControls();
           requestRender();
         }
       }

@@ -19,6 +19,7 @@ Most ASCII converters ship a build step, a CDN dependency or an upload. This one
 - **Tone controls** — size, contrast, brightness, coverage, gamma, invert.
 - **Palettes** — source colours, monochrome, or a duotone tint.
 - **Canvas colours** — custom background and transparent output for PNG and SVG.
+- **Image backdrop** — a blurred, dimmed copy of the source image sits behind the glyphs.
 - **Exports** — PNG (1× / 2×), JPG, SVG, plus plain-text ASCII (.txt) and copy-to-clipboard.
 - **Comfortable viewing** — drag & drop, wheel zoom, pinch zoom, pan, double-click to reset.
 - **Responsive** — a floating side panel on desktop, a bottom sheet on mobile.
@@ -39,7 +40,7 @@ You can also open `index.html` directly from disk. If a browser refuses to read 
 
 ## Export sizes
 
-PNG 1× matches the on-screen canvas, 2× doubles it. Exports are clamped to 8192 px per side and 16 megapixels. SVG keeps glyphs and blocks as real vector elements, with no embedded raster image. With a transparent background, PNG and SVG keep the alpha channel; JPG falls back to the chosen background colour.
+PNG 1× matches the on-screen canvas, 2× doubles it. Exports are clamped to 8192 px per side and 16 megapixels. SVG keeps glyphs and blocks as real vector elements and only embeds a blurred JPEG layer when the image backdrop is on. With a transparent background, PNG and SVG keep the alpha channel; JPG falls back to the chosen background colour.
 
 ## Keyboard
 

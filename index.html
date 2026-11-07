@@ -259,7 +259,7 @@
     flex: 1;
     min-height: 0;
     overflow-y: auto;
-    padding: 2px 14px 14px;
+    padding: 2px 14px 10px;
     scrollbar-width: thin;
     scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
   }
@@ -272,7 +272,7 @@
 
   .field-label {
     display: block;
-    margin: 11px 0 6px;
+    margin: 9px 0 5px;
     font-size: 10px;
     font-weight: 650;
     letter-spacing: 0.15em;
@@ -291,7 +291,7 @@
 
   .seg-btn {
     flex: 1 1 0;
-    height: 28px;
+    height: 26px;
     padding: 0 4px;
     border: 0;
     border-radius: 7px;
@@ -312,7 +312,7 @@
 
   .group {
     min-width: 0;
-    margin: 13px 0 0;
+    margin: 10px 0 0;
     padding: 0;
     border: 0;
     transition: opacity 0.2s;
@@ -332,7 +332,7 @@
 
   .select {
     width: 100%;
-    height: 32px;
+    height: 30px;
     padding: 0 9px;
     border-radius: 8px;
     border: 1px solid var(--line);
@@ -348,7 +348,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    margin: 9px 0 2px;
+    margin: 7px 0 2px;
     font-size: 12.5px;
   }
 
@@ -365,7 +365,7 @@
   input[type="range"] {
     display: block;
     width: 100%;
-    height: 18px;
+    height: 16px;
     margin: 0;
     accent-color: var(--accent);
     cursor: pointer;
@@ -376,7 +376,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 10px;
-    margin: 10px 0 0;
+    margin: 8px 0 0;
     font-size: 12.5px;
     cursor: pointer;
   }
@@ -389,13 +389,17 @@
     cursor: pointer;
   }
 
-  .palette-block { margin-top: 13px; }
+  .palette-block { margin-top: 10px; }
+
+  #backdropGroup { margin-top: 9px; }
+
+  #backdropGroup .inline-field { margin-top: 4px; }
 
   .inline-field {
     display: flex;
     align-items: center;
     gap: 10px;
-    margin-top: 11px;
+    margin-top: 8px;
   }
 
   .inline-field > label {
@@ -414,7 +418,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    margin-top: 9px;
+    margin-top: 7px;
   }
 
   .color-field,
@@ -757,9 +761,19 @@
 
       <div class="color-row">
         <label class="color-field" for="tintColor">Tint <input type="color" id="tintColor" data-color="tintColor" value="#7dd3fc" disabled></label>
-        <label class="toggle-inline" for="backdrop" title="Blurred, dimmed source image behind the glyphs"><input type="checkbox" id="backdrop" data-flag="backdrop"> Backdrop</label>
       </div>
     </div>
+
+    <fieldset class="group" id="backdropGroup">
+      <legend>Backdrop</legend>
+      <div class="inline-field">
+        <label for="backdropMode">Mode</label>
+        <select class="select" id="backdropMode">
+          <option value="solid">Solid black</option>
+          <option value="image">Blurred image</option>
+        </select>
+      </div>
+    </fieldset>
 
     <button type="button" class="btn-reset" id="resetBtn">Reset settings</button>
   </div>
@@ -803,7 +817,7 @@
     bg: '#000000',
     bgTransparent: false,
     tintColor: '#7dd3fc',
-    backdrop: false,
+    backdrop: 'solid',
     randomize: false,
     randomAmount: 40,
     randomSeed: 7,
@@ -1019,7 +1033,7 @@
   }
 
   function paintBackdrop(ctx, image, state, width, height, fontPx) {
-    const backdrop = Boolean(state.backdrop && image);
+    const backdrop = state.backdrop === 'image' && Boolean(image);
     if (!state.bgTransparent || backdrop) {
       ctx.fillStyle = state.bg;
       ctx.fillRect(0, 0, width, height);
@@ -1237,7 +1251,7 @@
     const parts = [];
     parts.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img">`);
     parts.push(`<title>${escapeXml(title)}</title>`);
-    if (state.backdrop && image) {
+    if (state.backdrop === 'image' && image) {
       const blur = fixed(Math.max(4, state.size * 1.4));
       parts.push(`<defs><filter id="bgblur" x="-15%" y="-15%" width="130%" height="130%"><feGaussianBlur stdDeviation="${blur}"/></filter></defs>`);
       parts.push(`<image href="${backdropDataUrl(image, width, height)}" x="0" y="0" width="${width}" height="${height}" preserveAspectRatio="xMidYMid slice" filter="url(#bgblur)"/>`);
@@ -1334,6 +1348,7 @@
   const bgColor = document.getElementById('bgColor');
   const tintColor = document.getElementById('tintColor');
   const transparentToggle = document.getElementById('bgTransparent');
+  const backdropSelect = document.getElementById('backdropMode');
   const resetBtn = document.getElementById('resetBtn');
   const fileInput = document.getElementById('fileInput');
   const exportMenu = document.getElementById('exportMenu');
@@ -1426,7 +1441,7 @@
   }
 
   function applyCanvasLook() {
-    const transparent = Boolean(state.bgTransparent && !state.backdrop);
+    const transparent = Boolean(state.bgTransparent && state.backdrop !== 'image');
     canvas.classList.toggle('is-transparent', transparent);
     canvas.style.background = transparent ? '' : state.bg;
   }
@@ -1609,7 +1624,8 @@
     tintColor.value = state.tintColor;
     bgColor.disabled = Boolean(state.bgTransparent);
     tintColor.disabled = state.palette !== 'tint';
-    transparentToggle.disabled = Boolean(state.backdrop);
+    transparentToggle.disabled = state.backdrop === 'image';
+    backdropSelect.value = state.backdrop;
     applyCanvasLook();
 
     for (const button of panel.querySelectorAll('[data-effect]')) {
@@ -1868,6 +1884,12 @@
         state.chars = rampById(state.ramp).chars;
         markCustom();
         requestRender();
+      } else if (target === backdropSelect) {
+        state.backdrop = target.value === 'image' ? 'image' : 'solid';
+        if (state.backdrop === 'image') state.bgTransparent = false;
+        markCustom();
+        syncControls();
+        requestRender();
       } else if (target instanceof HTMLInputElement && target.type === 'color') {
         const key = target.dataset.color;
         if (key) {
@@ -1880,9 +1902,8 @@
         const key = target.dataset.flag;
         if (key) {
           state[key] = target.checked;
-          if (key === 'backdrop' && state.backdrop) state.bgTransparent = false;
           markCustom();
-          if (key === 'bgTransparent' || key === 'backdrop') syncControls();
+          if (key === 'bgTransparent') syncControls();
           requestRender();
         }
       }

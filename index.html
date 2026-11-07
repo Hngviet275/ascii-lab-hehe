@@ -154,6 +154,9 @@
     opacity: 0.65;
     display: inline-block;
   }
+  .menu summary.icon-btn::after { display: none; }
+  .btn.icon-btn { width: 32px; padding: 0; }
+  .icon-btn svg { display: block; }
   .menu[open] summary { border-color: rgba(125, 211, 252, 0.45); color: var(--accent); }
   .menu-pop {
     position: absolute;
@@ -502,6 +505,7 @@
     .panel-grip { display: flex; }
     .panel-body { padding-bottom: calc(14px + env(safe-area-inset-bottom)); }
     .empty-card { padding: 20px; }
+    .btn.icon-btn { width: 30px; }
   }
 
   @media (max-width: 430px) {
@@ -523,15 +527,20 @@
   <div class="brand">ASCII<span class="dot">·</span><b>mini</b></div>
   <div class="actions">
     <button type="button" class="btn" data-action="open">Open</button>
-    <details class="menu" id="pngMenu">
-      <summary class="btn">PNG</summary>
+    <details class="menu" id="exportMenu">
+      <summary class="btn icon-btn" aria-label="Download" title="Download">
+        <svg viewBox="0 0 20 20" width="15" height="15" aria-hidden="true" focusable="false">
+          <path d="M10 3v8m0 0 3.2-3.2M10 11 6.8 7.8M4 13.5V15a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-1.5"
+            fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </summary>
       <div class="menu-pop">
         <button type="button" data-action="png1">PNG 1×</button>
         <button type="button" data-action="png2">PNG 2×</button>
+        <button type="button" data-action="jpg">JPG</button>
+        <button type="button" data-action="svg">SVG</button>
       </div>
     </details>
-    <button type="button" class="btn" data-action="jpg">JPG</button>
-    <button type="button" class="btn" data-action="svg">SVG</button>
   </div>
 </header>
 
@@ -1052,7 +1061,7 @@
   const rampSelect = document.getElementById('ramp');
   const resetBtn = document.getElementById('resetBtn');
   const fileInput = document.getElementById('fileInput');
-  const pngMenu = document.getElementById('pngMenu');
+  const exportMenu = document.getElementById('exportMenu');
   const toast = document.getElementById('toast');
 
   const state = { ...DEFAULT_STATE };
@@ -1472,19 +1481,21 @@
           setImage(makeDemoImage());
           showToast('Demo loaded');
         } else if (action === 'png1') {
-          pngMenu.open = false;
+          exportMenu.open = false;
           exportRaster(1, 'image/png', undefined, 'png');
         } else if (action === 'png2') {
-          pngMenu.open = false;
+          exportMenu.open = false;
           exportRaster(2, 'image/png', undefined, 'png');
         } else if (action === 'jpg') {
+          exportMenu.open = false;
           exportRaster(2, 'image/jpeg', 0.92, 'jpg');
         } else if (action === 'svg') {
+          exportMenu.open = false;
           exportSvg();
         }
       }
 
-      if (!pngMenu.contains(target)) pngMenu.open = false;
+      if (!exportMenu.contains(target)) exportMenu.open = false;
     });
 
     fileInput.addEventListener('change', () => {
@@ -1624,7 +1635,7 @@
         (target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
 
       if (event.key === 'Escape') {
-        pngMenu.open = false;
+        exportMenu.open = false;
         dropVeil.hidden = true;
         return;
       }

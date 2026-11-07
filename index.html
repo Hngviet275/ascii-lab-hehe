@@ -81,6 +81,15 @@
 
   #canvas:active { cursor: grabbing; }
 
+  #canvas.is-transparent {
+    background-color: #101319;
+    background-image:
+      linear-gradient(45deg, rgba(255, 255, 255, 0.07) 25%, transparent 25%, transparent 75%, rgba(255, 255, 255, 0.07) 75%),
+      linear-gradient(45deg, rgba(255, 255, 255, 0.07) 25%, transparent 25%, transparent 75%, rgba(255, 255, 255, 0.07) 75%);
+    background-size: 16px 16px;
+    background-position: 0 0, 8px 8px;
+  }
+
   .topbar {
     position: fixed;
     top: 14px;
@@ -167,7 +176,7 @@
     position: absolute;
     top: calc(100% + 7px);
     right: 0;
-    min-width: 138px;
+    min-width: 150px;
     padding: 5px;
     display: grid;
     gap: 2px;
@@ -189,6 +198,8 @@
     cursor: pointer;
   }
   .menu-pop button:hover { background: var(--accent-soft); color: var(--accent); }
+
+  .menu-sep { height: 1px; margin: 4px 2px; background: var(--line); }
 
   .panel {
     position: fixed;
@@ -261,7 +272,7 @@
 
   .field-label {
     display: block;
-    margin: 14px 0 7px;
+    margin: 11px 0 6px;
     font-size: 10px;
     font-weight: 650;
     letter-spacing: 0.15em;
@@ -301,7 +312,7 @@
 
   .group {
     min-width: 0;
-    margin: 16px 0 0;
+    margin: 13px 0 0;
     padding: 0;
     border: 0;
     transition: opacity 0.2s;
@@ -337,7 +348,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    margin: 12px 0 4px;
+    margin: 9px 0 2px;
     font-size: 12.5px;
   }
 
@@ -365,7 +376,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 10px;
-    margin: 13px 0 0;
+    margin: 10px 0 0;
     font-size: 12.5px;
     cursor: pointer;
   }
@@ -378,12 +389,60 @@
     cursor: pointer;
   }
 
-  .palette-block { margin-top: 16px; }
+  .palette-block { margin-top: 13px; }
+
+  .inline-field {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 11px;
+  }
+
+  .inline-field > label {
+    flex: 0 0 42px;
+    font-size: 10px;
+    font-weight: 650;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .inline-field .select { flex: 1; min-width: 0; }
+
+  .color-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-top: 9px;
+  }
+
+  .color-field {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--muted);
+    cursor: pointer;
+  }
+
+  input[type="color"] {
+    width: 38px;
+    height: 24px;
+    padding: 0;
+    border: 1px solid var(--line-strong);
+    border-radius: 6px;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  input[type="color"]::-webkit-color-swatch-wrapper { padding: 2px; }
+  input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 4px; }
+  input[type="color"]:disabled { opacity: 0.35; cursor: not-allowed; }
 
   .btn-reset {
     width: 100%;
     height: 34px;
-    margin-top: 20px;
+    margin-top: 14px;
     border-radius: 9px;
     border: 1px dashed var(--line-strong);
     background: transparent;
@@ -544,6 +603,9 @@
         <button type="button" data-action="png2">PNG 2×</button>
         <button type="button" data-action="jpg">JPG</button>
         <button type="button" data-action="svg">SVG</button>
+        <div class="menu-sep" role="separator"></div>
+        <button type="button" data-action="txt">TXT file</button>
+        <button type="button" data-action="copy">Copy ASCII</button>
       </div>
     </details>
   </div>
@@ -579,6 +641,18 @@
     <span class="chev"></span>
   </button>
   <div class="panel-body" id="panelBody">
+    <div class="inline-field">
+      <label for="preset">Look</label>
+      <select class="select" id="preset">
+        <option value="custom">Custom</option>
+        <option value="terminal">Terminal</option>
+        <option value="poster">Poster</option>
+        <option value="newsprint">Newsprint</option>
+        <option value="neon">Neon</option>
+        <option value="blueprint">Blueprint</option>
+      </select>
+    </div>
+
     <span class="field-label" id="effectLabel">Effect</span>
     <div class="seg" role="group" aria-labelledby="effectLabel">
       <button type="button" class="seg-btn is-active" data-effect="chars" aria-pressed="true">Characters</button>
@@ -588,14 +662,16 @@
 
     <fieldset class="group" id="glyphGroup">
       <legend>Glyphs</legend>
-      <label class="field-label" for="ramp">Ramp</label>
-      <select class="select" id="ramp">
-        <option value="standard">Standard</option>
-        <option value="classic">Classic ASCII</option>
-        <option value="dense">Dense</option>
-        <option value="blocks">Blocks</option>
-        <option value="binary">Binary</option>
-      </select>
+      <div class="inline-field">
+        <label for="ramp">Ramp</label>
+        <select class="select" id="ramp">
+          <option value="standard">Standard</option>
+          <option value="classic">Classic ASCII</option>
+          <option value="dense">Dense</option>
+          <option value="blocks">Blocks</option>
+          <option value="binary">Binary</option>
+        </select>
+      </div>
 
       <label class="switch-row" for="randomize">
         <span>Randomize</span>
@@ -659,7 +735,18 @@
       <div class="seg" role="group" aria-labelledby="paletteLabel">
         <button type="button" class="seg-btn is-active" data-palette="source" aria-pressed="true">Source</button>
         <button type="button" class="seg-btn" data-palette="mono" aria-pressed="false">Mono</button>
+        <button type="button" class="seg-btn" data-palette="tint" aria-pressed="false">Tint</button>
       </div>
+
+      <div class="color-row">
+        <label class="color-field" for="bgColor">BG <input type="color" id="bgColor" data-color="bg" value="#000000"></label>
+        <label class="color-field" for="tintColor">Tint <input type="color" id="tintColor" data-color="tintColor" value="#7dd3fc" disabled></label>
+      </div>
+
+      <label class="switch-row" for="bgTransparent">
+        <span>Transparent background</span>
+        <input type="checkbox" id="bgTransparent" data-flag="bgTransparent">
+      </label>
     </div>
 
     <button type="button" class="btn-reset" id="resetBtn">Reset settings</button>
@@ -701,10 +788,107 @@
     gamma: 100,
     invert: false,
     palette: 'source',
+    bg: '#000000',
+    bgTransparent: false,
+    tintColor: '#7dd3fc',
     randomize: false,
     randomAmount: 40,
     randomSeed: 7,
+    preset: 'custom',
   });
+
+  const PRESETS = {
+    terminal: {
+      label: 'Terminal',
+      effect: 'chars',
+      ramp: 'standard',
+      size: 11,
+      contrast: 24,
+      brightness: 2,
+      coverage: 100,
+      gamma: 105,
+      invert: false,
+      palette: 'tint',
+      bg: '#04100a',
+      bgTransparent: false,
+      tintColor: '#63f5a1',
+      randomize: false,
+      randomAmount: 40,
+      randomSeed: 7,
+    },
+    poster: {
+      label: 'Poster',
+      effect: 'block',
+      ramp: 'blocks',
+      size: 16,
+      contrast: 45,
+      brightness: 0,
+      coverage: 92,
+      gamma: 95,
+      invert: false,
+      palette: 'source',
+      bg: '#0a0908',
+      bgTransparent: false,
+      tintColor: '#ffd166',
+      randomize: false,
+      randomAmount: 40,
+      randomSeed: 7,
+    },
+    newsprint: {
+      label: 'Newsprint',
+      effect: 'dither',
+      ramp: 'classic',
+      size: 7,
+      contrast: 30,
+      brightness: 6,
+      coverage: 100,
+      gamma: 85,
+      invert: false,
+      palette: 'mono',
+      bg: '#f2ede2',
+      bgTransparent: false,
+      tintColor: '#1a1a1a',
+      randomize: false,
+      randomAmount: 40,
+      randomSeed: 7,
+    },
+    neon: {
+      label: 'Neon',
+      effect: 'chars',
+      ramp: 'dense',
+      size: 9,
+      contrast: 42,
+      brightness: 2,
+      coverage: 100,
+      gamma: 120,
+      invert: false,
+      palette: 'tint',
+      bg: '#0a0014',
+      bgTransparent: false,
+      tintColor: '#ff4fd8',
+      randomize: true,
+      randomAmount: 26,
+      randomSeed: 11,
+    },
+    blueprint: {
+      label: 'Blueprint',
+      effect: 'chars',
+      ramp: 'standard',
+      size: 12,
+      contrast: 30,
+      brightness: 0,
+      coverage: 96,
+      gamma: 110,
+      invert: false,
+      palette: 'tint',
+      bg: '#08243b',
+      bgTransparent: false,
+      tintColor: '#bfe6ff',
+      randomize: false,
+      randomAmount: 40,
+      randomSeed: 7,
+    },
+  };
 
   const clamp = (value, min, max) => (value < min ? min : value > max ? max : value);
 
@@ -784,12 +968,28 @@
     return samplerCtx.getImageData(0, 0, sampler.width, sampler.height).data;
   }
 
-  function colorFor(state, r, g, b, luma) {
+  function hexRgb(hex) {
+    const match = /^#?([0-9a-f]{6})$/i.exec(hex || '');
+    const value = match ? parseInt(match[1], 16) : 0;
+    return { r: (value >> 16) & 255, g: (value >> 8) & 255, b: value & 255 };
+  }
+
+  function makeColorer(state) {
     if (state.palette === 'mono') {
-      const v = Math.round(16 + luma * 224);
-      return `rgb(${v},${v},${v})`;
+      return (r, g, b, luma) => {
+        const v = Math.round(16 + luma * 224);
+        return `rgb(${v},${v},${v})`;
+      };
     }
-    return `rgb(${r | 0},${g | 0},${b | 0})`;
+    if (state.palette === 'tint') {
+      const from = state.bgTransparent ? { r: 0, g: 0, b: 0 } : hexRgb(state.bg);
+      const to = hexRgb(state.tintColor);
+      return (r, g, b, luma) => {
+        const t = 0.15 + 0.85 * clamp(luma, 0, 1);
+        return `rgb(${Math.round(from.r + (to.r - from.r) * t)},${Math.round(from.g + (to.g - from.g) * t)},${Math.round(from.b + (to.b - from.b) * t)})`;
+      };
+    }
+    return (r, g, b) => `rgb(${r | 0},${g | 0},${b | 0})`;
   }
 
   function cellNoise(col, row, seed) {
@@ -815,6 +1015,7 @@
     const last = chars.length - 1;
     const halfW = cellW / 2;
     const halfH = cellH / 2;
+    const paint = makeColorer(state);
 
     ctx.font = font;
     ctx.textAlign = 'center';
@@ -835,7 +1036,7 @@
         const glyph = glyphAt(state, chars, last, luma, col, row);
         if (glyph === ' ') continue;
 
-        ctx.fillStyle = colorFor(state, r, g, b, luma);
+        ctx.fillStyle = paint(r, g, b, luma);
         ctx.fillText(glyph, col * cellW + halfW, y);
       }
     }
@@ -848,6 +1049,7 @@
     const pixels = sample(image, sw, sh);
     const dw = cellW / 2;
     const dh = cellH / 2;
+    const paint = makeColorer(state);
 
     for (let y = 0; y < sh; y++) {
       for (let x = 0; x < sw; x++) {
@@ -861,7 +1063,7 @@
         if (luma < threshold) continue;
         if (luma < BAYER8[(y & 7) * 8 + (x & 7)] / 64) continue;
 
-        ctx.fillStyle = colorFor(state, r, g, b, luma);
+        ctx.fillStyle = paint(r, g, b, luma);
         ctx.fillRect(x * dw, y * dh, dw + 0.6, dh + 0.6);
       }
     }
@@ -871,6 +1073,7 @@
     const { cols, rows, cellW, cellH } = grid;
     const pixels = sample(image, cols, rows);
     const gap = Math.min(2, cellW * 0.08);
+    const paint = makeColorer(state);
 
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
@@ -883,7 +1086,7 @@
         const luma = tone[(0.299 * r + 0.587 * g + 0.114 * b) | 0];
         if (luma < threshold) continue;
 
-        ctx.fillStyle = colorFor(state, r, g, b, luma);
+        ctx.fillStyle = paint(r, g, b, luma);
         ctx.fillRect(
           col * cellW + gap / 2,
           row * cellH + gap / 2,
@@ -909,8 +1112,10 @@
     ctx.globalCompositeOperation = 'source-over';
     ctx.shadowBlur = 0;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#000';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    if (!state.bgTransparent) {
+      ctx.fillStyle = state.bg;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
 
     const effect = state.effect || 'chars';
     const scaled = effect === 'dither';
@@ -979,12 +1184,15 @@
     const parts = [];
     parts.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img">`);
     parts.push(`<title>${escapeXml(title)}</title>`);
-    parts.push(`<rect width="${width}" height="${height}" fill="#000"/>`);
+    if (!state.bgTransparent) {
+      parts.push(`<rect width="${width}" height="${height}" fill="${escapeXml(state.bg)}"/>`);
+    }
 
     if (image) {
       const tone = makeTone(state);
       const threshold = ((100 - state.coverage) / 100) * 0.85;
       const textGroup = effect === 'chars';
+      const paint = makeColorer(state);
 
       parts.push('<g>');
       if (textGroup) {
@@ -1007,7 +1215,7 @@
             const luma = tone[(0.299 * r + 0.587 * g + 0.114 * b) | 0];
             if (luma < threshold) continue;
             if (luma < BAYER8[(y & 7) * 8 + (x & 7)] / 64) continue;
-            parts.push(`<rect x="${fixed(x * dw)}" y="${fixed(y * dh)}" width="${fixed(dw + 0.2)}" height="${fixed(dh + 0.2)}" fill="${colorFor(state, r, g, b, luma)}"/>`);
+            parts.push(`<rect x="${fixed(x * dw)}" y="${fixed(y * dh)}" width="${fixed(dw + 0.2)}" height="${fixed(dh + 0.2)}" fill="${paint(r, g, b, luma)}"/>`);
           }
         }
       } else if (effect === 'block') {
@@ -1022,7 +1230,7 @@
             const b = pixels[offset + 2];
             const luma = tone[(0.299 * r + 0.587 * g + 0.114 * b) | 0];
             if (luma < threshold) continue;
-            parts.push(`<rect x="${fixed(col * cellW + gap / 2)}" y="${fixed(row * cellH + gap / 2)}" width="${fixed(cellW - gap)}" height="${fixed(cellH - gap)}" fill="${colorFor(state, r, g, b, luma)}"/>`);
+            parts.push(`<rect x="${fixed(col * cellW + gap / 2)}" y="${fixed(row * cellH + gap / 2)}" width="${fixed(cellW - gap)}" height="${fixed(cellH - gap)}" fill="${paint(r, g, b, luma)}"/>`);
           }
         }
       } else {
@@ -1040,7 +1248,7 @@
             if (luma < threshold) continue;
             const glyph = glyphAt(state, chars, last, luma, col, row);
             if (glyph === ' ') continue;
-            parts.push(`<text x="${fixed(col * cellW + cellW / 2)}" y="${fixed(row * cellH + cellH / 2)}" fill="${colorFor(state, r, g, b, luma)}">${escapeXml(glyph)}</text>`);
+            parts.push(`<text x="${fixed(col * cellW + cellW / 2)}" y="${fixed(row * cellH + cellH / 2)}" fill="${paint(r, g, b, luma)}">${escapeXml(glyph)}</text>`);
           }
         }
       }
@@ -1064,6 +1272,9 @@
   const panelGrip = document.getElementById('panelGrip');
   const glyphGroup = document.getElementById('glyphGroup');
   const rampSelect = document.getElementById('ramp');
+  const presetSelect = document.getElementById('preset');
+  const bgColor = document.getElementById('bgColor');
+  const tintColor = document.getElementById('tintColor');
   const resetBtn = document.getElementById('resetBtn');
   const fileInput = document.getElementById('fileInput');
   const exportMenu = document.getElementById('exportMenu');
@@ -1155,8 +1366,16 @@
     });
   }
 
+  function applyCanvasLook() {
+    const transparent = Boolean(state.bgTransparent);
+    canvas.classList.toggle('is-transparent', transparent);
+    canvas.style.background = transparent ? '' : state.bg;
+  }
+
   function paintIdle() {
     canvas.hidden = true;
+    canvas.classList.remove('is-transparent');
+    canvas.style.background = '';
     canvas.setAttribute('aria-label', 'ASCII preview. Open an image or try the demo.');
   }
 
@@ -1165,6 +1384,7 @@
       paintIdle();
       return;
     }
+    applyCanvasLook();
     const scale = dpr();
     try {
       const result = renderAscii(
@@ -1306,7 +1526,30 @@
 
   /* ---------- controls ---------- */
 
+  function markCustom() {
+    state.preset = 'custom';
+    presetSelect.value = 'custom';
+  }
+
+  function applyPreset(id) {
+    const preset = PRESETS[id];
+    if (!preset) return;
+    Object.assign(state, DEFAULT_STATE, preset);
+    state.chars = rampById(state.ramp).chars;
+    state.preset = id;
+    syncControls();
+    requestRender();
+    showToast(`Look: ${preset.label}`);
+  }
+
   function syncControls() {
+    presetSelect.value = state.preset;
+    bgColor.value = state.bg;
+    tintColor.value = state.tintColor;
+    bgColor.disabled = Boolean(state.bgTransparent);
+    tintColor.disabled = state.palette !== 'tint';
+    applyCanvasLook();
+
     for (const button of panel.querySelectorAll('[data-effect]')) {
       const active = button.dataset.effect === state.effect;
       button.classList.toggle('is-active', active);
@@ -1336,6 +1579,7 @@
     const key = match.dataset.key;
     if (!key) return;
     state[key] = Number(match.value);
+    markCustom();
     const output = document.getElementById(`${match.id}Out`);
     if (output) output.textContent = match.value;
     requestRender();
@@ -1355,7 +1599,7 @@
 
   /* ---------- exports ---------- */
 
-  function renderExport(scale) {
+  function renderExport(scale, opaque = false) {
     let targetW = Math.min(Math.round(baseW * scale), MAX_EXPORT_SIDE);
     let unit = targetW / baseW;
     let outW = Math.round(baseW * unit);
@@ -1368,8 +1612,9 @@
       unit = outW / baseW;
     }
 
+    const renderState = opaque && state.bgTransparent ? { ...state, bgTransparent: false } : state;
     const target = document.createElement('canvas');
-    const result = renderAscii(target, image, state, outW, outH, unit);
+    const result = renderAscii(target, image, renderState, outW, outH, unit);
     return { canvas: target, cols: result.cols, rows: result.rows };
   }
 
@@ -1377,13 +1622,13 @@
     return `ascii-lab-${dateStamp()}-${state.effect}-${cols}x${rows}.${ext}`;
   }
 
-  async function exportRaster(scale, type, quality, ext) {
+  async function exportRaster(scale, type, quality, ext, opaque = false) {
     if (!image || !baseW) {
       showToast('Open an image first', 'error');
       return;
     }
     try {
-      const output = renderExport(scale);
+      const output = renderExport(scale, opaque);
       const name = exportName(ext, output.cols, output.rows);
       let blob = null;
       try {
@@ -1418,6 +1663,126 @@
     }
   }
 
+  function buildAsciiText() {
+    const width = Math.max(1, Math.round(baseW));
+    const height = Math.max(1, Math.round(baseH));
+    const effect = state.effect || 'chars';
+    const scaled = effect === 'dither';
+    const fontPx = Math.max(3, state.size);
+    const font = `${fontPx}px ui-monospace, "SF Mono", Menlo, monospace`;
+    const cap = scaled ? MAX_SCALED_CELLS : MAX_CELLS;
+
+    let cellW = Math.max(2, measureSvgCell(font));
+    let cellH = fontPx;
+    let cols = Math.max(1, Math.floor(width / cellW));
+    let rows = Math.max(1, Math.floor(height / cellH));
+    while (cols * rows > cap) {
+      cellW *= 1.08;
+      cellH *= 1.08;
+      cols = Math.max(1, Math.floor(width / cellW));
+      rows = Math.max(1, Math.floor(height / cellH));
+    }
+
+    const tone = makeTone(state);
+    const threshold = ((100 - state.coverage) / 100) * 0.85;
+    const lines = [];
+    const lumaAt = (pixels, offset) => tone[(0.299 * pixels[offset] + 0.587 * pixels[offset + 1] + 0.114 * pixels[offset + 2]) | 0];
+
+    if (effect === 'dither') {
+      const sw = cols * 2;
+      const sh = rows * 2;
+      const pixels = sample(image, sw, sh);
+      for (let y = 0; y < sh; y++) {
+        let line = '';
+        for (let x = 0; x < sw; x++) {
+          const offset = (y * sw + x) * 4;
+          let mark = ' ';
+          if (pixels[offset + 3] >= 8) {
+            const luma = lumaAt(pixels, offset);
+            if (luma >= threshold && luma >= BAYER8[(y & 7) * 8 + (x & 7)] / 64) mark = '█';
+          }
+          line += mark;
+        }
+        lines.push(line.trimEnd());
+      }
+    } else if (effect === 'block') {
+      const pixels = sample(image, cols, rows);
+      for (let row = 0; row < rows; row++) {
+        let line = '';
+        for (let col = 0; col < cols; col++) {
+          const offset = (row * cols + col) * 4;
+          let mark = ' ';
+          if (pixels[offset + 3] >= 8 && lumaAt(pixels, offset) >= threshold) mark = '█';
+          line += mark;
+        }
+        lines.push(line.trimEnd());
+      }
+    } else {
+      const pixels = sample(image, cols, rows);
+      const chars = Array.from(state.chars || ' ');
+      const last = chars.length - 1;
+      for (let row = 0; row < rows; row++) {
+        let line = '';
+        for (let col = 0; col < cols; col++) {
+          const offset = (row * cols + col) * 4;
+          let glyph = ' ';
+          if (pixels[offset + 3] >= 8) {
+            const luma = lumaAt(pixels, offset);
+            if (luma >= threshold) glyph = glyphAt(state, chars, last, luma, col, row);
+          }
+          line += glyph;
+        }
+        lines.push(line.trimEnd());
+      }
+    }
+
+    while (lines.length && lines[lines.length - 1] === '') lines.pop();
+    return { text: lines.join('\n'), cols, rows };
+  }
+
+  function exportTxt() {
+    if (!image || !baseW) {
+      showToast('Open an image first', 'error');
+      return;
+    }
+    const result = buildAsciiText();
+    const name = exportName('txt', result.cols, result.rows);
+    downloadBlob(new Blob([result.text], { type: 'text/plain;charset=utf-8' }), name);
+    showToast('TXT saved');
+  }
+
+  function fallbackCopy(text) {
+    const area = document.createElement('textarea');
+    area.value = text;
+    area.setAttribute('readonly', '');
+    area.style.position = 'fixed';
+    area.style.opacity = '0';
+    document.body.appendChild(area);
+    area.select();
+    const copied = document.execCommand('copy');
+    area.remove();
+    if (!copied) throw new Error('copy failed');
+  }
+
+  async function copyAscii() {
+    if (!image || !baseW) {
+      showToast('Open an image first', 'error');
+      return;
+    }
+    const { text } = buildAsciiText();
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (error) {
+      try {
+        fallbackCopy(text);
+      } catch (fallbackError) {
+        showToast('Could not copy to clipboard', 'error');
+        return;
+      }
+    }
+    showToast('ASCII copied');
+  }
+
   /* ---------- interaction ---------- */
 
   function bindControls() {
@@ -1430,14 +1795,31 @@
       const target = event.target;
       if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement)) return;
 
-      if (target === rampSelect) {
+      if (target === presetSelect) {
+        if (target.value === 'custom') {
+          state.preset = 'custom';
+        } else {
+          applyPreset(target.value);
+        }
+      } else if (target === rampSelect) {
         state.ramp = target.value;
         state.chars = rampById(state.ramp).chars;
+        markCustom();
         requestRender();
+      } else if (target instanceof HTMLInputElement && target.type === 'color') {
+        const key = target.dataset.color;
+        if (key) {
+          state[key] = target.value;
+          markCustom();
+          syncControls();
+          requestRender();
+        }
       } else if (target instanceof HTMLInputElement && target.type === 'checkbox') {
         const key = target.dataset.flag;
         if (key) {
           state[key] = target.checked;
+          markCustom();
+          if (key === 'bgTransparent') syncControls();
           requestRender();
         }
       }
@@ -1450,6 +1832,7 @@
       const effectButton = target.closest('[data-effect]');
       if (effectButton) {
         state.effect = effectButton.dataset.effect;
+        markCustom();
         syncControls();
         requestRender();
         return;
@@ -1458,6 +1841,7 @@
       const paletteButton = target.closest('[data-palette]');
       if (paletteButton) {
         state.palette = paletteButton.dataset.palette;
+        markCustom();
         syncControls();
         requestRender();
         return;
@@ -1493,10 +1877,16 @@
           exportRaster(2, 'image/png', undefined, 'png');
         } else if (action === 'jpg') {
           exportMenu.open = false;
-          exportRaster(2, 'image/jpeg', 0.92, 'jpg');
+          exportRaster(2, 'image/jpeg', 0.92, 'jpg', true);
         } else if (action === 'svg') {
           exportMenu.open = false;
           exportSvg();
+        } else if (action === 'txt') {
+          exportMenu.open = false;
+          exportTxt();
+        } else if (action === 'copy') {
+          exportMenu.open = false;
+          copyAscii();
         }
       }
 

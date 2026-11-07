@@ -13,11 +13,13 @@ Most ASCII converters ship a build step, a CDN dependency or an upload. This one
 ## Features
 
 - **Three effects** — Characters, Block and Dither.
+- **Five looks** — Terminal, Poster, Newsprint, Neon and Blueprint, each a one-click starting point.
 - **Five ramps** — Standard, Classic ASCII, Dense, Blocks, Binary.
 - **Deterministic randomize** — jitter glyph choice with a seed you can reproduce.
 - **Tone controls** — size, contrast, brightness, coverage, gamma, invert.
-- **Two palettes** — source colours or monochrome.
-- **Exports** — PNG (1× / 2×), JPG and SVG.
+- **Palettes** — source colours, monochrome, or a duotone tint.
+- **Canvas colours** — custom background and transparent output for PNG and SVG.
+- **Exports** — PNG (1× / 2×), JPG, SVG, plus plain-text ASCII (.txt) and copy-to-clipboard.
 - **Comfortable viewing** — drag & drop, wheel zoom, pinch zoom, pan, double-click to reset.
 - **Responsive** — a floating side panel on desktop, a bottom sheet on mobile.
 - **No external requests** — styles, scripts, fonts and the demo image are bundled in the single file.
@@ -37,7 +39,7 @@ You can also open `index.html` directly from disk. If a browser refuses to read 
 
 ## Export sizes
 
-PNG 1× matches the on-screen canvas, 2× doubles it. Exports are clamped to 8192 px per side and 16 megapixels. SVG keeps glyphs and blocks as real vector elements, with no embedded raster image.
+PNG 1× matches the on-screen canvas, 2× doubles it. Exports are clamped to 8192 px per side and 16 megapixels. SVG keeps glyphs and blocks as real vector elements, with no embedded raster image. With a transparent background, PNG and SVG keep the alpha channel; JPG falls back to the chosen background colour.
 
 ## Keyboard
 

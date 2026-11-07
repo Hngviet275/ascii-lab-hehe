@@ -19,7 +19,8 @@ Most ASCII converters ship a build step, a CDN dependency or an upload. This one
 - **Tone controls** — size, contrast, brightness, coverage, gamma, invert.
 - **Palettes** — source colours, monochrome, or a duotone tint.
 - **Canvas colours** — custom background and transparent output for PNG and SVG.
-- **Backdrop modes** — solid black, or a blurred and dimmed copy of the source image behind the glyphs.
+- **Backdrop modes** — solid black, or a blurred and dimmed copy of the source image behind the glyphs, with an adjustable Gaussian blur.
+- **Bundled font** — characters use IBM Plex Mono, embedded in the HTML so glyphs and SVG exports match offline.
 - **Exports** — PNG (1× / 2×), JPG, SVG, plus plain-text ASCII (.txt) and copy-to-clipboard.
 - **Comfortable viewing** — drag & drop, wheel zoom, pinch zoom, pan, double-click to reset.
 - **Responsive** — a floating side panel on desktop, a bottom sheet on mobile.
@@ -59,4 +60,4 @@ PNG 1× matches the on-screen canvas, 2× doubles it. Exports are clamped to 819
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE). The bundled IBM Plex Mono font is licensed under the SIL Open Font License 1.1 — see [docs/IBM-Plex-Mono-OFL.txt](docs/IBM-Plex-Mono-OFL.txt).

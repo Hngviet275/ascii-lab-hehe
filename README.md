@@ -2,7 +2,7 @@
 
 Turn any image into ASCII art — in one HTML file, entirely in your browser.
 
-**Live demo:** https://hngviet275.github.io/ascii-mini/
+**Live demo:** https://hngviet275.github.io/ascii-lab-hehe/
 
 ![ASCII lab . hehe v01](docs/screenshot.png)
 
@@ -31,8 +31,8 @@ Most ASCII converters ship a build step, a CDN dependency or an upload. This one
 Open the live demo, or run the file locally:
 
 ```bash
-git clone https://github.com/Hngviet275/ascii-mini.git
-cd ascii-mini
+git clone https://github.com/Hngviet275/ascii-lab-hehe.git
+cd ascii-lab-hehe
 python3 -m http.server 8766
 # then open http://localhost:8766/
 ```

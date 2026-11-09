@@ -4,22 +4,21 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="dark">
-<title>ASCII lab . hehe v01</title>
-<meta name="description" content="ASCII lab (hehe v01) — a tiny, single-file ASCII art converter. Runs entirely in your browser.">
+<title>ASCII lab . hehe v02</title>
+<meta name="description" content="ASCII lab (hehe v02) — a tiny, single-file ASCII art converter. Runs entirely in your browser.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b0d11'/%3E%3Ctext x='32' y='43' font-family='monospace' font-size='28' fill='%237dd3fc' text-anchor='middle'%3E@%3C/text%3E%3C/svg%3E">
 <style>
   :root {
-    --bg: #08090b;
-    --panel: rgba(15, 17, 22, 0.72);
-    --panel-solid: rgba(15, 17, 22, 0.96);
-    --line: rgba(255, 255, 255, 0.09);
-    --line-strong: rgba(255, 255, 255, 0.17);
-    --text: #e9eef5;
-    --muted: #8b95a7;
+    color-scheme: dark;
+    --bg-app: #0c0c0d;
+    --bg-panel: #111113;
+    --bg-control: #1a1a1d;
+    --bg-active: #2e2e33;
+    --bg-pop: #161618;
+    --line: #232326;
+    --text: #ededee;
+    --muted: #8e8e93;
     --accent: #7dd3fc;
-    --accent-soft: rgba(125, 211, 252, 0.14);
-    --radius: 14px;
-    --shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
   }
 
   * { box-sizing: border-box; }
@@ -29,7 +28,7 @@
   body {
     margin: 0;
     overflow: hidden;
-    background: var(--bg);
+    background: var(--bg-app);
     color: var(--text);
     font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
     -webkit-font-smoothing: antialiased;
@@ -39,27 +38,624 @@
 
   button, input, select { font: inherit; color: inherit; }
 
+  button { -webkit-tap-highlight-color: transparent; }
+
   :focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
   }
 
+  .topbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 30;
+    height: 48px;
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border-bottom: 1px solid var(--line);
+    background: var(--bg-app);
+  }
+
+  .brand {
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .brand .version {
+    color: var(--muted);
+    font-weight: 400;
+  }
+
+  .actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .text-btn {
+    height: 30px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text);
+    font-size: 13px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .text-btn:hover { background: var(--bg-control); }
+
+  .menu { position: relative; }
+  .menu summary { list-style: none; }
+  .menu summary::-webkit-details-marker { display: none; }
+  .menu[open] summary.text-btn { background: var(--bg-control); }
+
+  .menu-pop {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    min-width: 150px;
+    padding: 4px;
+    display: grid;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+    background: var(--bg-pop);
+  }
+
+  .menu-pop button {
+    height: 30px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text);
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .menu-pop button:hover { background: var(--bg-control); }
+
+  .menu-sep { height: 1px; margin: 4px 0; background: var(--line); }
+
+  .panel {
+    position: fixed;
+    top: 48px;
+    bottom: 0;
+    left: 0;
+    z-index: 20;
+    width: 280px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg-panel);
+    border-right: 1px solid var(--line);
+  }
+
+  .panel-grip { display: none; }
+
+  .seg.panel-tabs {
+    flex: none;
+    margin: 12px 16px 0;
+  }
+
+  .panel-tabs button {
+    padding: 0 8px;
+    font-size: 12px;
+  }
+
+  .panel-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    scrollbar-width: thin;
+    scrollbar-color: #2a2a2e transparent;
+  }
+
+  .panel-body::-webkit-scrollbar { width: 8px; }
+  .panel-body::-webkit-scrollbar-thumb {
+    background: #2a2a2e;
+    border-radius: 999px;
+  }
+
+  .section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .section h2 {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .section--look {
+    position: relative;
+    z-index: 5;
+    display: block;
+  }
+
+  .section--bg,
+  .section--tone {
+    display: block;
+  }
+
+  .section--bg h2 {
+    margin: 0 0 8px;
+  }
+
+  .section--tone h2 {
+    margin: 0 0 4px;
+  }
+
+  .section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .section-head h2 { margin: 0; }
+
+  .section--grade > .section-head { margin-bottom: 0; }
+
+  .look-name {
+    font-size: 12px;
+    color: var(--muted);
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .look-grid {
+    display: grid;
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    gap: 4px;
+  }
+
+  .look-btn,
+  .look-more {
+    display: grid;
+    place-items: center;
+    min-width: 0;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    background: var(--look-bg, var(--bg-control));
+    color: var(--look-fg, var(--text));
+    font: 13px/1 "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    cursor: pointer;
+  }
+
+  .look-btn[aria-pressed="true"],
+  .look-more.has-active {
+    box-shadow: 0 0 0 1.5px var(--accent);
+  }
+
+  .look-more { background: var(--bg-control); color: var(--text); }
+  .look-more svg { display: block; }
+
+  .look-more-pop {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 6px;
+    min-width: 164px;
+    max-height: 220px;
+    overflow-y: auto;
+    padding: 4px;
+    display: grid;
+    gap: 2px;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+    background: var(--bg-pop);
+    z-index: 6;
+  }
+
+  .look-more-pop button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    height: 30px;
+    padding: 0 6px;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text);
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .look-more-pop button:hover { background: var(--bg-control); }
+  .look-more-pop button[aria-pressed="true"] { background: var(--bg-active); }
+
+  .look-swatch {
+    flex: 0 0 20px;
+    display: grid;
+    place-items: center;
+    height: 20px;
+    border-radius: 3px;
+    background: var(--look-bg);
+    color: var(--look-fg);
+    font: 11px/1 "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  }
+
+  .stack {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .row-label {
+    flex: 0 0 64px;
+    font-size: 12px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  .row-label--strong {
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .slider {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+  }
+
+  .slider-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 18px;
+  }
+
+  .slider-head .row-label {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .slider input[type="range"] {
+    --fill: 0%;
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 18px;
+    margin: 0;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  .slider input[type="range"]::-webkit-slider-runnable-track {
+    height: 2px;
+    border-radius: 999px;
+    background: linear-gradient(to right, var(--accent) 0 var(--fill), var(--bg-active) var(--fill) 100%);
+  }
+
+  .slider input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 10px;
+    height: 10px;
+    margin-top: -4px;
+    border: 0;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+
+  .slider input[type="range"]::-moz-range-track {
+    height: 2px;
+    border-radius: 999px;
+    background: var(--bg-active);
+  }
+
+  .slider input[type="range"]::-moz-range-progress {
+    height: 2px;
+    border-radius: 999px;
+    background: var(--accent);
+  }
+
+  .slider input[type="range"]::-moz-range-thumb {
+    width: 10px;
+    height: 10px;
+    border: 0;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+
+  .num-input {
+    flex: 0 0 40px;
+    box-sizing: border-box;
+    width: 40px;
+    height: 18px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    font: 11.5px/1.5 "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    text-align: right;
+    appearance: textfield;
+    -moz-appearance: textfield;
+  }
+
+  .num-input::-webkit-outer-spin-button,
+  .num-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  .select {
+    flex: 1;
+    min-width: 0;
+    height: 30px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: 6px;
+    background: var(--bg-control);
+    color: var(--text);
+    font-size: 13px;
+  }
+
+  .select option { background: var(--bg-control); color: var(--text); }
+
+  .text-input {
+    flex: 1;
+    min-width: 0;
+    height: 30px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: 6px;
+    background: var(--bg-control);
+    color: var(--text);
+    font: 12.5px/1 "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  }
+
+  .chips {
+    display: flex;
+    gap: 4px;
+  }
+
+  .chip {
+    flex: 1 1 0;
+    height: 28px;
+    border: 0;
+    border-radius: 6px;
+    background: var(--bg-control);
+    color: var(--muted);
+    font-size: 12px;
+    cursor: pointer;
+  }
+
+  .chip[aria-pressed="true"] {
+    background: var(--bg-active);
+    color: var(--text);
+  }
+
+  .seg-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .seg {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    gap: 2px;
+    padding: 2px;
+    border-radius: 6px;
+    background: var(--bg-control);
+  }
+
+  .seg button {
+    flex: 1 1 0;
+    min-width: 0;
+    height: 26px;
+    padding: 0 1px;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--muted);
+    font-size: 11px;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .seg button[aria-pressed="true"],
+  .seg button[aria-selected="true"] {
+    background: var(--bg-active);
+    color: var(--text);
+  }
+
+  .color-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 30px;
+  }
+
+  .color-row .row-label {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .color-code {
+    color: var(--muted);
+    font: 11.5px/1 "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    text-transform: uppercase;
+  }
+
+  .filter-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .filter-chip {
+    display: block;
+    min-width: 0;
+    height: 28px;
+    padding: 0 4px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--muted);
+    font-size: 11px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+  }
+
+  .filter-chip[aria-pressed="true"] {
+    border-color: transparent;
+    background: var(--bg-active);
+    color: var(--text);
+  }
+
+  .switch {
+    position: relative;
+    flex: 0 0 34px;
+    width: 34px;
+    height: 18px;
+    padding: 0;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--bg-control);
+    cursor: pointer;
+    transition: background-color .15s ease;
+  }
+
+  .switch::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: transform .15s ease, background-color .15s ease;
+  }
+
+  .switch[aria-checked="true"] {
+    background: var(--bg-active);
+  }
+
+  .switch[aria-checked="true"]::after {
+    background: var(--text);
+    transform: translateX(16px);
+  }
+
+  input[type="color"] {
+    flex: 0 0 30px;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+  input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 6px; }
+  input[type="color"]::-moz-color-swatch { border: 0; border-radius: 6px; }
+
+  .advanced-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    height: 28px;
+    margin-top: 2px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    font-size: 12px;
+    cursor: pointer;
+  }
+
+  .advanced-toggle .chev {
+    width: 6px;
+    height: 6px;
+    margin-right: 4px;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    transform: rotate(45deg);
+    transition: transform 0.2s;
+  }
+
+  .advanced-toggle[aria-expanded="true"] .chev { transform: rotate(225deg); }
+
+  #gaussianRows { margin-top: 4px; }
+
+  #advancedBody .chips { margin-top: 6px; }
+
+  .reset-all {
+    align-self: flex-start;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    font-size: 12px;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
+  }
+
   #stage {
     position: fixed;
-    inset: 0;
-    background:
-      radial-gradient(900px 520px at 68% 26%, rgba(56, 189, 248, 0.10), transparent 62%),
-      radial-gradient(760px 520px at 22% 96%, rgba(125, 211, 252, 0.055), transparent 62%),
-      linear-gradient(rgba(255, 255, 255, 0.020) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255, 255, 255, 0.020) 1px, transparent 1px),
-      var(--bg);
-    background-size: auto, auto, 56px 56px, 56px 56px, auto;
+    top: 48px;
+    left: 280px;
+    right: 0;
+    bottom: 0;
+    background: var(--bg-app);
   }
 
   #viewport {
-    position: fixed;
+    position: absolute;
     inset: 0;
-    padding: 80px 24px 24px 320px;
+    padding: 24px;
     display: grid;
     place-items: center;
     overflow: hidden;
@@ -71,8 +667,6 @@
     width: 320px;
     height: 200px;
     background: #000;
-    border-radius: 8px;
-    box-shadow: 0 30px 90px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.07);
     transform-origin: center center;
     touch-action: none;
     cursor: grab;
@@ -90,440 +684,32 @@
     background-position: 0 0, 8px 8px;
   }
 
-  .topbar {
-    position: fixed;
-    top: 14px;
-    left: 16px;
-    right: 16px;
-    z-index: 30;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    pointer-events: none;
-  }
-
-  .brand {
-    font-size: 15px;
-    font-weight: 650;
-    letter-spacing: -0.01em;
-    text-shadow: 0 2px 18px rgba(0, 0, 0, 0.7);
-  }
-
-  .brand b { color: var(--accent); font-weight: 650; }
-
-  .brand .version {
-    color: var(--muted);
-    font-size: 11px;
-    font-weight: 500;
-    letter-spacing: 0.01em;
-  }
-
-  .actions {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    pointer-events: auto;
-  }
-
-  .btn {
-    height: 32px;
-    padding: 0 13px;
-    border-radius: 999px;
-    border: 1px solid var(--line);
-    background: rgba(16, 18, 24, 0.66);
-    color: var(--text);
-    font-size: 12.5px;
-    font-weight: 550;
-    letter-spacing: 0.01em;
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    backdrop-filter: blur(16px) saturate(1.2);
-    transition: background 0.16s, border-color 0.16s, color 0.16s;
-  }
-
-  .btn:hover { background: rgba(32, 38, 49, 0.85); border-color: var(--line-strong); }
-  .btn:active { transform: translateY(1px); }
-  .btn.primary {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: #06131b;
-  }
-  .btn.primary:hover { background: #a5e3ff; border-color: #a5e3ff; }
-
-  .menu { position: relative; }
-  .menu summary { list-style: none; }
-  .menu summary::-webkit-details-marker { display: none; }
-  .menu summary::after {
-    content: "";
-    width: 5px;
-    height: 5px;
-    margin-left: 7px;
-    border-right: 1.5px solid currentColor;
-    border-bottom: 1.5px solid currentColor;
-    transform: rotate(45deg) translateY(-1px);
-    opacity: 0.65;
-    display: inline-block;
-  }
-  .menu summary.icon-btn::after { display: none; }
-  .btn.icon-btn { width: 32px; padding: 0; }
-  .icon-btn svg { display: block; }
-  .menu[open] summary { border-color: rgba(125, 211, 252, 0.45); color: var(--accent); }
-  .menu-pop {
-    position: absolute;
-    top: calc(100% + 7px);
-    right: 0;
-    min-width: 150px;
-    padding: 5px;
-    display: grid;
-    gap: 2px;
-    border-radius: 11px;
-    border: 1px solid var(--line);
-    background: var(--panel-solid);
-    box-shadow: var(--shadow);
-    backdrop-filter: blur(20px);
-  }
-  .menu-pop button {
-    height: 30px;
-    padding: 0 9px;
-    border: 0;
-    border-radius: 7px;
-    background: transparent;
-    color: var(--text);
-    font-size: 12px;
-    text-align: left;
-    cursor: pointer;
-  }
-  .menu-pop button:hover { background: var(--accent-soft); color: var(--accent); }
-
-  .menu-sep { height: 1px; margin: 4px 2px; background: var(--line); }
-
-  .panel {
-    position: fixed;
-    top: 78px;
-    bottom: 16px;
-    left: 16px;
-    z-index: 20;
-    width: 276px;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    border-radius: var(--radius);
-    border: 1px solid var(--line);
-    background: var(--panel);
-    box-shadow: var(--shadow);
-    backdrop-filter: blur(20px) saturate(1.3);
-  }
-
-  .panel-grip {
-    display: none;
-    flex: 0 0 auto;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    width: 100%;
-    height: 46px;
-    border: 0;
-    border-bottom: 1px solid var(--line);
-    background: transparent;
-    color: var(--muted);
-    font-size: 10px;
-    font-weight: 650;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    cursor: pointer;
-  }
-
-  .panel-grip .grip-bar {
-    width: 26px;
-    height: 3px;
-    border-radius: 999px;
-    background: var(--line-strong);
-  }
-
-  .panel-grip .chev {
-    width: 6px;
-    height: 6px;
-    border-right: 1.5px solid currentColor;
-    border-bottom: 1.5px solid currentColor;
-    transform: rotate(225deg);
-    transition: transform 0.2s;
-  }
-
-  .panel-grip[aria-expanded="true"] .chev { transform: rotate(45deg); }
-
-  .panel-body {
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
-    padding: 2px 14px 10px;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
-  }
-
-  .panel-body::-webkit-scrollbar { width: 8px; }
-  .panel-body::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.14);
-    border-radius: 999px;
-  }
-
-  .field-label {
-    display: block;
-    margin: 9px 0 5px;
-    font-size: 10px;
-    font-weight: 650;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    color: var(--muted);
-  }
-
-  .seg {
-    display: flex;
-    gap: 3px;
-    padding: 3px;
-    border-radius: 10px;
-    border: 1px solid var(--line);
-    background: rgba(255, 255, 255, 0.04);
-  }
-
-  .seg-btn {
-    flex: 1 1 0;
-    height: 26px;
-    padding: 0 4px;
-    border: 0;
-    border-radius: 7px;
-    background: transparent;
-    color: var(--muted);
-    font-size: 12px;
-    font-weight: 550;
-    cursor: pointer;
-    transition: background 0.16s, color 0.16s, box-shadow 0.16s;
-  }
-
-  .seg-btn:hover { color: var(--text); }
-  .seg-btn.is-active {
-    background: var(--accent-soft);
-    color: var(--accent);
-    box-shadow: inset 0 0 0 1px rgba(125, 211, 252, 0.35);
-  }
-
-  .group {
-    min-width: 0;
-    margin: 10px 0 0;
-    padding: 0;
-    border: 0;
-    transition: opacity 0.2s;
-  }
-
-  .group > legend {
-    padding: 0;
-    margin-bottom: 2px;
-    font-size: 10px;
-    font-weight: 650;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    color: var(--muted);
-  }
-
-  .group:disabled { opacity: 0.4; pointer-events: none; }
-
-  .select {
-    width: 100%;
-    height: 30px;
-    padding: 0 9px;
-    border-radius: 8px;
-    border: 1px solid var(--line);
-    background: rgba(255, 255, 255, 0.05);
-    color: var(--text);
-    font-size: 12.5px;
-  }
-
-  .select option { background: #12141a; }
-
-  .range-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    margin: 7px 0 2px;
-    font-size: 12.5px;
-  }
-
-  .range-head output,
-  #backdropBlurOut {
-    min-width: 30px;
-    padding: 1px 6px;
-    border-radius: 5px;
-    background: var(--accent-soft);
-    color: var(--accent);
-    font: 11px/1.5 ui-monospace, "SF Mono", Menlo, monospace;
-    text-align: center;
-  }
-
-  input[type="range"] {
-    display: block;
-    width: 100%;
-    height: 16px;
-    margin: 0;
-    accent-color: var(--accent);
-    cursor: pointer;
-  }
-
-  .switch-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    margin: 8px 0 0;
-    font-size: 12.5px;
-    cursor: pointer;
-  }
-
-  .switch-row input {
-    width: 16px;
-    height: 16px;
-    margin: 0;
-    accent-color: var(--accent);
-    cursor: pointer;
-  }
-
-  .palette-block { margin-top: 10px; }
-
-  #backdropGroup { margin-top: 9px; }
-
-  #backdropGroup .inline-field { margin-top: 4px; }
-
-  #backdropBlurField { margin-top: 6px; }
-
-  #backdropBlurField > label {
-    flex: 0 0 58px;
-    letter-spacing: 0.08em;
-  }
-
-  #backdropBlurField input[type="range"] {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .inline-field {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-top: 8px;
-  }
-
-  .inline-field > label {
-    flex: 0 0 42px;
-    font-size: 10px;
-    font-weight: 650;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    color: var(--muted);
-  }
-
-  .inline-field .select { flex: 1; min-width: 0; }
-
-  .color-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    margin-top: 7px;
-  }
-
-  .color-field,
-  .toggle-inline {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 12px;
-    color: var(--muted);
-    cursor: pointer;
-  }
-
-  .toggle-inline input {
-    width: 15px;
-    height: 15px;
-    margin: 0;
-    accent-color: var(--accent);
-    cursor: pointer;
-  }
-
-  .toggle-inline:has(input:disabled) { opacity: 0.4; pointer-events: none; }
-
-  input[type="color"] {
-    width: 38px;
-    height: 24px;
-    padding: 0;
-    border: 1px solid var(--line-strong);
-    border-radius: 6px;
-    background: transparent;
-    cursor: pointer;
-  }
-
-  input[type="color"]::-webkit-color-swatch-wrapper { padding: 2px; }
-  input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 4px; }
-  input[type="color"]:disabled { opacity: 0.35; cursor: not-allowed; }
-
-  .btn-reset {
-    width: 100%;
-    height: 34px;
-    margin-top: 14px;
-    border-radius: 9px;
-    border: 1px dashed var(--line-strong);
-    background: transparent;
-    color: var(--muted);
-    font-size: 12px;
-    font-weight: 550;
-    cursor: pointer;
-  }
-
-  .btn-reset:hover { color: var(--text); border-color: rgba(255, 255, 255, 0.3); }
-
   #empty {
-    position: fixed;
+    position: absolute;
     inset: 0;
-    z-index: 10;
-    padding: 80px 24px 24px 320px;
+    z-index: 5;
+    padding: 24px;
     display: grid;
     place-items: center;
     pointer-events: none;
   }
 
-  .empty-card {
+  .empty-content {
     pointer-events: auto;
-    width: min(360px, 100%);
-    padding: 24px;
-    border-radius: 18px;
-    border: 1px solid var(--line);
-    background: rgba(14, 16, 21, 0.82);
-    box-shadow: var(--shadow);
-    backdrop-filter: blur(22px) saturate(1.2);
+    width: min(320px, 100%);
     text-align: center;
   }
 
-  .empty-kicker {
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    color: var(--accent);
+  .empty-content h1 {
+    margin: 0 0 6px;
+    font-size: 18px;
+    font-weight: 600;
   }
 
-  .empty-card h1 {
-    margin: 9px 0 7px;
-    font-size: 22px;
-    font-weight: 650;
-    letter-spacing: -0.02em;
-  }
-
-  .empty-card p {
-    margin: 0 0 18px;
-    font-size: 12.5px;
-    line-height: 1.55;
+  .empty-content p {
+    margin: 0 0 16px;
+    font-size: 13px;
+    line-height: 1.5;
     color: var(--muted);
   }
 
@@ -531,7 +717,24 @@
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 8px;
+    gap: 6px;
+  }
+
+  .empty-btn {
+    height: 32px;
+    padding: 0 14px;
+    border: 0;
+    border-radius: 6px;
+    background: var(--bg-control);
+    color: var(--text);
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  .empty-btn.primary {
+    background: var(--accent);
+    color: #06131b;
+    font-weight: 550;
   }
 
   #dropVeil {
@@ -540,70 +743,90 @@
     z-index: 60;
     display: grid;
     place-items: center;
-    background: rgba(6, 8, 12, 0.74);
-    backdrop-filter: blur(5px);
+    background: rgba(12, 12, 13, 0.88);
   }
 
   .veil-frame {
-    padding: 34px 46px;
-    border-radius: 20px;
-    border: 1px dashed rgba(125, 211, 252, 0.55);
-    background: rgba(12, 16, 22, 0.6);
-    color: var(--accent);
+    padding: 32px 44px;
+    border-radius: 8px;
+    border: 1px dashed #8e8e93;
     font-size: 14px;
-    font-weight: 600;
-    letter-spacing: 0.02em;
   }
 
   #toast {
     position: fixed;
     left: 50%;
-    bottom: 22px;
+    bottom: 20px;
     z-index: 70;
-    max-width: calc(100vw - 32px);
-    padding: 9px 16px;
-    border-radius: 999px;
-    border: 1px solid rgba(125, 211, 252, 0.35);
-    background: rgba(16, 19, 25, 0.94);
-    box-shadow: 0 12px 34px rgba(0, 0, 0, 0.55);
-    font-size: 12.5px;
+    max-width: calc(100% - 32px);
+    box-sizing: border-box;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+    background: var(--bg-pop);
+    font-size: 13px;
     text-align: center;
     transform: translateX(-50%);
   }
 
-  #toast[data-kind="error"] { border-color: rgba(248, 113, 113, 0.55); color: #fecaca; }
+  #toast[data-kind="error"] {
+    border-color: rgba(248, 113, 113, 0.55);
+    color: #fecaca;
+  }
 
   @media (max-width: 760px) {
-    .topbar { top: 10px; left: 10px; right: 10px; }
-    .brand { font-size: 13px; }
-    .btn { height: 30px; padding: 0 11px; font-size: 12px; }
+    .topbar { height: 44px; }
 
-    #viewport, #empty {
-      padding: 64px 12px 60px;
+    #stage {
+      top: 44px;
+      left: 0;
+      bottom: 44px;
     }
 
-    #toast { bottom: 70px; }
+    #viewport, #empty { padding: 12px; }
 
     .panel {
       top: auto;
-      right: 10px;
-      bottom: 10px;
-      left: 10px;
+      left: 0;
+      right: 0;
+      bottom: 0;
       width: auto;
-      max-height: 46vh;
-      transition: transform 0.26s cubic-bezier(0.22, 0.9, 0.3, 1);
+      height: min(388px, 46vh);
+      border-right: 0;
+      border-top: 1px solid var(--line);
+      transition: transform 0.2s ease;
     }
 
-    .panel.is-collapsed { transform: translateY(calc(100% - 46px)); }
-    .panel-grip { display: flex; }
-    .panel-body { padding-bottom: calc(14px + env(safe-area-inset-bottom)); }
-    .empty-card { padding: 20px; }
-    .btn.icon-btn { width: 30px; }
-  }
+    .panel.is-collapsed { transform: translateY(calc(100% - 44px)); }
 
-  @media (max-width: 430px) {
-    .brand { display: none; }
-    .topbar { justify-content: flex-end; }
+    .panel-grip {
+      display: flex;
+      flex: 0 0 44px;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      height: 44px;
+      padding: 0 16px;
+      border: 0;
+      background: transparent;
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .panel-grip .chev {
+      width: 6px;
+      height: 6px;
+      border-right: 1.5px solid var(--muted);
+      border-bottom: 1.5px solid var(--muted);
+      transform: rotate(225deg);
+      transition: transform 0.2s;
+    }
+
+    .panel-grip[aria-expanded="true"] .chev { transform: rotate(45deg); }
+
+    #toast { bottom: 56px; }
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -617,16 +840,11 @@
 </head>
 <body>
 <header class="topbar">
-  <div class="brand">ASCII <b>lab</b> <span class="version">. hehe v01</span></div>
+  <div class="brand">ASCII lab <span class="version">. hehe v02</span></div>
   <div class="actions">
-    <button type="button" class="btn" data-action="open">Open</button>
+    <button type="button" class="text-btn" data-action="open">Open</button>
     <details class="menu" id="exportMenu">
-      <summary class="btn icon-btn" aria-label="Download" title="Download">
-        <svg viewBox="0 0 20 20" width="15" height="15" aria-hidden="true" focusable="false">
-          <path d="M10 3v8m0 0 3.2-3.2M10 11 6.8 7.8M4 13.5V15a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-1.5"
-            fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </summary>
+      <summary class="text-btn">Export</summary>
       <div class="menu-pop">
         <button type="button" data-action="png1">PNG 1×</button>
         <button type="button" data-action="png2">PNG 2×</button>
@@ -647,13 +865,12 @@
   </div>
 
   <div id="empty">
-    <div class="empty-card">
-      <div class="empty-kicker">Local · no upload</div>
+    <div class="empty-content">
       <h1>Drop an image</h1>
-      <p>PNG, JPG, WebP or GIF. Everything is processed in this tab — nothing leaves your device.</p>
+      <p>PNG, JPG, WebP or GIF. Everything stays on your device.</p>
       <div class="empty-actions">
-        <button type="button" class="btn primary" data-action="open">Open image</button>
-        <button type="button" class="btn" data-action="demo">Try demo</button>
+        <button type="button" class="empty-btn primary" data-action="open">Open image</button>
+        <button type="button" class="empty-btn" data-action="demo">Try demo</button>
       </div>
     </div>
   </div>
@@ -665,132 +882,311 @@
 
 <aside class="panel" id="panel" aria-label="Controls">
   <button type="button" class="panel-grip" id="panelGrip" aria-expanded="true" aria-controls="panelBody">
-    <span class="grip-bar"></span>
-    Controls
-    <span class="chev"></span>
+    <span id="gripText">Controls · Chars</span>
+    <span class="chev" aria-hidden="true"></span>
   </button>
+  <div class="seg panel-tabs" role="tablist" aria-label="Panel tabs">
+    <button type="button" role="tab" id="tabRender" data-tab="render" aria-selected="true"
+      aria-controls="lookSection effectSection bgSection toneSection" tabindex="0">Render</button>
+    <button type="button" role="tab" id="tabColor" data-tab="color" aria-selected="false"
+      aria-controls="gradeSection" tabindex="-1">Color</button>
+  </div>
   <div class="panel-body" id="panelBody">
-    <div class="inline-field">
-      <label for="preset">Look</label>
-      <select class="select" id="preset">
-        <option value="custom">Custom</option>
-        <option value="terminal">Terminal</option>
-        <option value="poster">Poster</option>
-        <option value="newsprint">Newsprint</option>
-        <option value="neon">Neon</option>
-        <option value="blueprint">Blueprint</option>
-      </select>
-    </div>
+    <section class="section section--look" id="lookSection" aria-labelledby="lookHead" data-tab="render">
+      <div class="section-head">
+        <h2 id="lookHead">Look</h2>
+        <span class="look-name" id="lookName">Custom</span>
+      </div>
+      <div class="look-grid" id="lookGrid"></div>
+      <div class="look-more-pop" id="lookMore" aria-label="More looks" hidden></div>
+    </section>
 
-    <span class="field-label" id="effectLabel">Effect</span>
-    <div class="seg" role="group" aria-labelledby="effectLabel">
-      <button type="button" class="seg-btn is-active" data-effect="chars" aria-pressed="true">Characters</button>
-      <button type="button" class="seg-btn" data-effect="block" aria-pressed="false">Block</button>
-      <button type="button" class="seg-btn" data-effect="dither" aria-pressed="false">Dither</button>
-    </div>
-
-    <fieldset class="group" id="glyphGroup">
-      <legend>Glyphs</legend>
-      <div class="inline-field">
-        <label for="ramp">Ramp</label>
-        <select class="select" id="ramp">
-          <option value="standard">Standard</option>
-          <option value="classic">Classic ASCII</option>
-          <option value="dense">Dense</option>
-          <option value="blocks">Blocks</option>
-          <option value="binary">Binary</option>
+    <section class="section" aria-label="Effect" id="effectSection" data-tab="render">
+      <div class="row">
+        <label for="effect" class="row-label row-label--strong">Effect</label>
+        <select class="select" id="effect">
+          <option value="chars">Chars</option>
+          <option value="braille">Braille</option>
+          <option value="block">Block</option>
+          <option value="dither">Dither</option>
+          <option value="halftone">Halftone</option>
         </select>
       </div>
 
-      <label class="switch-row" for="randomize">
-        <span>Randomize</span>
-        <input type="checkbox" id="randomize" data-flag="randomize">
-      </label>
+      <div class="stack" id="charsControls">
+        <div class="row">
+          <label for="ramp" class="row-label">Ramp</label>
+          <select class="select" id="ramp">
+            <option value="standard">Standard</option>
+            <option value="classic">Classic ASCII</option>
+            <option value="dense">Dense</option>
+            <option value="blocks">Blocks</option>
+            <option value="binary">Binary</option>
+            <option value="custom">Custom</option>
+          </select>
+        </div>
 
-      <div class="range-head">
-        <label for="randomAmount">Amount</label>
-        <output id="randomAmountOut" for="randomAmount">40</output>
+        <div class="row" id="charsRow" hidden>
+          <label for="charsInput" class="row-label">Chars</label>
+          <input class="text-input" type="text" id="charsInput" maxlength="64" spellcheck="false"
+            autocomplete="off" value="@#S08Xx+=-;:." aria-label="Custom character ramp">
+        </div>
+
+        <div class="chips">
+          <button type="button" class="chip" data-flag="invertMapping" aria-pressed="false">Invert ramp</button>
+          <button type="button" class="chip" data-flag="randomize" aria-pressed="false">Randomize</button>
+        </div>
+
+        <div class="stack" id="randomRows" hidden>
+          <div class="slider">
+            <div class="slider-head">
+              <label for="randomAmount" class="row-label">Amount</label>
+              <input type="number" class="num-input" data-key="randomAmount" aria-label="Amount value"
+                min="0" max="100" step="1" value="40">
+            </div>
+            <input type="range" id="randomAmount" data-key="randomAmount" min="0" max="100" step="1" value="40">
+          </div>
+          <div class="slider">
+            <div class="slider-head">
+              <label for="randomSeed" class="row-label">Seed</label>
+              <input type="number" class="num-input" data-key="randomSeed" aria-label="Seed value"
+                min="0" max="999" step="1" value="7">
+            </div>
+            <input type="range" id="randomSeed" data-key="randomSeed" min="0" max="999" step="1" value="7">
+          </div>
+        </div>
       </div>
-      <input type="range" id="randomAmount" data-key="randomAmount" min="0" max="100" step="1" value="40">
 
-      <div class="range-head">
-        <label for="randomSeed">Seed</label>
-        <output id="randomSeedOut" for="randomSeed">7</output>
+      <div class="stack" id="ditherControls" hidden>
+        <div class="row">
+          <label for="ditherAlgorithm" class="row-label">Algorithm</label>
+          <select class="select" id="ditherAlgorithm">
+            <option value="bayer8">Bayer 8×8 (Ordered)</option>
+            <option value="floyd">Floyd–Steinberg</option>
+            <option value="atkinson">Atkinson (Mac '84)</option>
+            <option value="whiteNoise">White Noise</option>
+          </select>
+        </div>
+        <div class="slider">
+          <div class="slider-head">
+            <label for="ditherStrength" class="row-label">Strength</label>
+            <input type="number" class="num-input" data-key="ditherStrength" aria-label="Strength value"
+              min="0" max="100" step="1" value="100">
+          </div>
+          <input type="range" id="ditherStrength" data-key="ditherStrength" min="0" max="100" step="1" value="100">
+        </div>
       </div>
-      <input type="range" id="randomSeed" data-key="randomSeed" min="0" max="999" step="1" value="7">
-    </fieldset>
+    </section>
 
-    <fieldset class="group" id="toneGroup">
-      <legend>Tone</legend>
-
-      <div class="range-head">
-        <label for="size">Size</label>
-        <output id="sizeOut" for="size">11</output>
+    <section class="section section--bg" id="bgSection" aria-labelledby="bgHead" data-tab="render">
+      <h2 id="bgHead">Background</h2>
+      <div class="seg-row">
+        <div class="seg" role="group" aria-labelledby="bgHead">
+          <button type="button" data-bgmode="solid" aria-pressed="true">Solid</button>
+          <button type="button" data-bgmode="transparent" aria-pressed="false">Transparent</button>
+          <button type="button" data-bgmode="blurred" aria-pressed="false">Blurred</button>
+        </div>
       </div>
-      <input type="range" id="size" data-key="size" min="4" max="40" step="1" value="11">
-
-      <div class="range-head">
-        <label for="contrast">Contrast</label>
-        <output id="contrastOut" for="contrast">20</output>
+      <div class="color-row" id="bgColorRow">
+        <label for="bgColor" class="row-label">Color</label>
+        <span class="color-code" id="bgValue">#000000</span>
+        <input type="color" id="bgColor" data-color="bg" value="#000000" aria-label="Background color">
       </div>
-      <input type="range" id="contrast" data-key="contrast" min="-100" max="100" step="1" value="20">
-
-      <div class="range-head">
-        <label for="brightness">Brightness</label>
-        <output id="brightnessOut" for="brightness">0</output>
+      <div class="slider" id="gaussianRows" hidden>
+        <div class="slider-head">
+          <label for="backdropBlur" class="row-label">Gaussian</label>
+          <input type="number" class="num-input" data-key="backdropBlur" aria-label="Gaussian value"
+            min="0" max="40" step="1" value="15">
+        </div>
+        <input type="range" id="backdropBlur" data-key="backdropBlur" min="0" max="40" step="1" value="15">
       </div>
-      <input type="range" id="brightness" data-key="brightness" min="-100" max="100" step="1" value="0">
+    </section>
 
-      <div class="range-head">
-        <label for="coverage">Coverage</label>
-        <output id="coverageOut" for="coverage">100</output>
+    <section class="section section--grade" id="gradeSection" aria-label="Color grade" data-tab="color" hidden>
+      <div class="section-head">
+        <h2 id="gradeLookHead">Look</h2>
+        <span class="look-name" id="gradeLookName">None</span>
       </div>
-      <input type="range" id="coverage" data-key="coverage" min="0" max="100" step="1" value="100">
-
-      <div class="range-head">
-        <label for="gamma">Gamma</label>
-        <output id="gammaOut" for="gamma">100</output>
+      <div class="filter-grid" role="group" aria-labelledby="gradeLookHead">
+        <button type="button" class="filter-chip" data-color-filter="none" aria-pressed="true">None</button>
+        <button type="button" class="filter-chip" data-color-filter="bw" aria-pressed="false">B&amp;W</button>
+        <button type="button" class="filter-chip" data-color-filter="sepia" aria-pressed="false">Sepia</button>
+        <button type="button" class="filter-chip" data-color-filter="warm" aria-pressed="false">Warm</button>
+        <button type="button" class="filter-chip" data-color-filter="cool" aria-pressed="false">Cool</button>
+        <button type="button" class="filter-chip" data-color-filter="vintage" aria-pressed="false">Vintage</button>
+        <button type="button" class="filter-chip" data-color-filter="fade" aria-pressed="false">Fade</button>
+        <button type="button" class="filter-chip" data-color-filter="cyber" aria-pressed="false">Cyber</button>
       </div>
-      <input type="range" id="gamma" data-key="gamma" min="30" max="300" step="1" value="100">
 
-      <label class="switch-row" for="invert">
-        <span>Invert</span>
-        <input type="checkbox" id="invert" data-flag="invert">
-      </label>
-    </fieldset>
+      <h2 id="gradePaletteHead">Palette</h2>
+      <div class="seg-row">
+        <div class="seg" role="group" aria-labelledby="gradePaletteHead">
+          <button type="button" data-palette="source" aria-pressed="true">Source</button>
+          <button type="button" data-palette="mono" aria-pressed="false">Mono</button>
+          <button type="button" data-palette="tint" aria-pressed="false">Tint</button>
+        </div>
+      </div>
 
-    <div class="palette-block">
-      <span class="field-label" id="paletteLabel">Palette</span>
-      <div class="seg" role="group" aria-labelledby="paletteLabel">
-        <button type="button" class="seg-btn is-active" data-palette="source" aria-pressed="true">Source</button>
-        <button type="button" class="seg-btn" data-palette="mono" aria-pressed="false">Mono</button>
-        <button type="button" class="seg-btn" data-palette="tint" aria-pressed="false">Tint</button>
+      <div class="row" id="ditherColorRow" hidden>
+        <label for="ditherPalette" class="row-label">Dither colors</label>
+        <select class="select" id="ditherPalette">
+          <option value="original">Original (dynamic)</option>
+          <option value="mono">Mono</option>
+          <option value="grey4">Grey 4</option>
+          <option value="grey8">Grey 8</option>
+          <option value="gameboy">Game Boy DMG</option>
+          <option value="cga1">CGA Mode 1</option>
+          <option value="cyberpunk">Cyberpunk Neon</option>
+        </select>
+      </div>
+
+      <div class="color-row" id="tintRow">
+        <label for="tintColor" class="row-label">Tint</label>
+        <span class="color-code" id="tintValue">#7dd3fc</span>
+        <input type="color" id="tintColor" data-color="tintColor" value="#7dd3fc" aria-label="Tint color">
+      </div>
+
+      <div class="slider">
+        <div class="slider-head">
+          <label for="gradeTintOpacity" class="row-label">Tint opacity</label>
+          <input type="number" class="num-input" data-color-key="tintOpacity" aria-label="Tint opacity value"
+            min="0" max="100" step="1" value="0">
+        </div>
+        <input type="range" id="gradeTintOpacity" data-color-key="tintOpacity" min="0" max="100" step="1" value="0">
+      </div>
+
+      <div class="row">
+        <label for="gradeBlend" class="row-label">Blend</label>
+        <select class="select" id="gradeBlend">
+          <option value="normal">Normal</option>
+          <option value="multiply">Multiply</option>
+          <option value="screen">Screen</option>
+          <option value="overlay">Overlay</option>
+          <option value="soft-light">Soft light</option>
+          <option value="color">Color</option>
+        </select>
+      </div>
+
+      <div class="slider">
+        <div class="slider-head">
+          <label for="gradeSat" class="row-label">Saturation</label>
+          <input type="number" class="num-input" data-color-key="sat" aria-label="Saturation value"
+            min="0" max="200" step="1" value="100">
+        </div>
+        <input type="range" id="gradeSat" data-color-key="sat" min="0" max="200" step="1" value="100">
+      </div>
+
+      <div class="slider">
+        <div class="slider-head">
+          <label for="gradeVibrance" class="row-label">Vibrance</label>
+          <input type="number" class="num-input" data-color-key="vibrance" aria-label="Vibrance value"
+            min="0" max="100" step="1" value="0">
+        </div>
+        <input type="range" id="gradeVibrance" data-color-key="vibrance" min="0" max="100" step="1" value="0">
+      </div>
+
+      <div class="slider">
+        <div class="slider-head">
+          <label for="gradeHue" class="row-label">Hue</label>
+          <input type="number" class="num-input" data-color-key="hue" aria-label="Hue value"
+            min="-180" max="180" step="1" value="0">
+        </div>
+        <input type="range" id="gradeHue" data-color-key="hue" min="-180" max="180" step="1" value="0">
+      </div>
+
+      <div class="row">
+        <label for="gradeGradient" class="row-label">Gradient map</label>
+        <select class="select" id="gradeGradient">
+          <option value="none">None</option>
+          <option value="mono">Mono</option>
+          <option value="sepia">Sepia</option>
+          <option value="ember">Ember</option>
+          <option value="mint">Mint</option>
+          <option value="violet">Violet</option>
+        </select>
+      </div>
+
+      <div class="slider">
+        <div class="slider-head">
+          <label for="gradeGray" class="row-label">Grayscale</label>
+          <input type="number" class="num-input" data-color-key="grayscale" aria-label="Grayscale value"
+            min="0" max="100" step="1" value="0">
+        </div>
+        <input type="range" id="gradeGray" data-color-key="grayscale" min="0" max="100" step="1" value="0">
       </div>
 
       <div class="color-row">
-        <label class="color-field" for="bgColor">BG <input type="color" id="bgColor" data-color="bg" value="#000000"></label>
-        <label class="color-field" for="tintColor">Tint <input type="color" id="tintColor" data-color="tintColor" value="#7dd3fc" disabled></label>
-        <label class="toggle-inline" for="bgTransparent"><input type="checkbox" id="bgTransparent" data-flag="bgTransparent"> Transparent</label>
+        <span class="row-label" id="invertImageLabel">Invert image</span>
+        <button type="button" class="switch" role="switch" data-flag="invert" aria-checked="false"
+          aria-labelledby="invertImageLabel"></button>
       </div>
-    </div>
+    </section>
 
-    <fieldset class="group" id="backdropGroup">
-      <legend>Backdrop</legend>
-      <div class="inline-field">
-        <label for="backdropMode">Mode</label>
-        <select class="select" id="backdropMode">
-          <option value="solid">Solid black</option>
-          <option value="image">Blurred image</option>
-        </select>
+    <section class="section section--tone" id="toneSection" aria-labelledby="toneHead" data-tab="render">
+      <h2 id="toneHead">Tone</h2>
+      <div class="slider">
+        <div class="slider-head">
+          <label for="size" class="row-label" id="sizeLabel">Size</label>
+          <input type="number" class="num-input" data-key="size" aria-label="Size value"
+            min="4" max="40" step="1" value="11">
+        </div>
+        <input type="range" id="size" data-key="size" min="4" max="40" step="1" value="11">
       </div>
-      <div class="inline-field" id="backdropBlurField" hidden>
-        <label for="backdropBlur">Gaussian</label>
-        <input type="range" id="backdropBlur" data-key="backdropBlur" min="0" max="40" step="1" value="15">
-        <output id="backdropBlurOut" for="backdropBlur">15</output>
+      <div class="slider">
+        <div class="slider-head">
+          <label for="contrast" class="row-label">Contrast</label>
+          <input type="number" class="num-input" data-key="contrast" aria-label="Contrast value"
+            min="-100" max="100" step="1" value="20">
+        </div>
+        <input type="range" id="contrast" data-key="contrast" min="-100" max="100" step="1" value="20">
       </div>
-    </fieldset>
+      <div class="slider">
+        <div class="slider-head">
+          <label for="brightness" class="row-label">Brightness</label>
+          <input type="number" class="num-input" data-key="brightness" aria-label="Brightness value"
+            min="-100" max="100" step="1" value="0">
+        </div>
+        <input type="range" id="brightness" data-key="brightness" min="-100" max="100" step="1" value="0">
+      </div>
 
-    <button type="button" class="btn-reset" id="resetBtn">Reset settings</button>
+      <button type="button" class="advanced-toggle" id="advancedToggle" aria-expanded="false" aria-controls="advancedBody">
+        <span>Advanced</span>
+        <span class="chev" aria-hidden="true"></span>
+      </button>
+
+      <div id="advancedBody" hidden>
+        <div class="slider">
+          <div class="slider-head">
+            <label for="charOpacity" class="row-label">Opacity</label>
+            <input type="number" class="num-input" data-key="charOpacity" aria-label="Opacity value"
+              min="0" max="100" step="1" value="100">
+          </div>
+          <input type="range" id="charOpacity" data-key="charOpacity" min="0" max="100" step="1" value="100">
+        </div>
+        <div class="slider">
+          <div class="slider-head">
+            <label for="coverage" class="row-label">Coverage</label>
+            <input type="number" class="num-input" data-key="coverage" aria-label="Coverage value"
+              min="0" max="100" step="1" value="100">
+          </div>
+          <input type="range" id="coverage" data-key="coverage" min="0" max="100" step="1" value="100">
+        </div>
+        <div class="slider">
+          <div class="slider-head">
+            <label for="gamma" class="row-label">Gamma</label>
+            <input type="number" class="num-input" data-key="gamma" aria-label="Gamma value"
+              min="30" max="300" step="1" value="100">
+          </div>
+          <input type="range" id="gamma" data-key="gamma" min="30" max="300" step="1" value="100">
+        </div>
+        <div class="chips">
+          <button type="button" class="chip" data-flag="invert" aria-pressed="false">Invert</button>
+          <button type="button" class="chip" data-flag="dotGrid" aria-pressed="false">Dot grid</button>
+        </div>
+      </div>
+    </section>
+
+    <button type="button" class="reset-all" id="resetBtn" hidden>Reset all</button>
   </div>
 </aside>
 
@@ -810,6 +1206,7 @@
 
   /* IBM Plex Mono 400 (latin, woff2) - SIL OFL 1.1, see docs/IBM-Plex-Mono-OFL.txt */
   const GLYPH_FONT = '"IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace';
+  const BRAILLE_FONT = '"Apple Braille", "Segoe UI Symbol", "DejaVu Sans Mono", Menlo, Consolas, monospace';
   const IBM_PLEX_MONO = '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';
 
   const RAMPS = [
@@ -820,18 +1217,44 @@
     { id: 'binary', label: 'Binary', chars: '10 ' },
   ];
 
-  const EFFECT_LABELS = { chars: 'characters', block: 'block', dither: 'dither' };
+  const EFFECT_LABELS = { chars: 'characters', braille: 'braille', block: 'block', dither: 'dither', halftone: 'halftone' };
+  const EFFECT_NAMES = { chars: 'Chars', braille: 'Braille', block: 'Block', dither: 'Dither', halftone: 'Halftone' };
+  const LOOK_GLYPHS = { terminal: '@', poster: '█', newsprint: '▚', neon: '$', blueprint: '#', braille: '⣿', halftone: '●', gameboy: '▚' };
+
+  const BRAILLE_BITS = [
+    [0x01, 0x08],
+    [0x02, 0x10],
+    [0x04, 0x20],
+    [0x40, 0x80],
+  ];
+
+  const DIFFUSION = {
+    floyd: [[1, 0, 7 / 16], [-1, 1, 3 / 16], [0, 1, 5 / 16], [1, 1, 1 / 16]],
+    atkinson: [[1, 0, 1 / 8], [2, 0, 1 / 8], [-1, 1, 1 / 8], [0, 1, 1 / 8], [1, 1, 1 / 8], [0, 2, 1 / 8]],
+  };
+
+  const DITHER_PALETTES = {
+    mono: [[0, 0, 0], [255, 255, 255]],
+    grey4: [0, 85, 170, 255].map((v) => [v, v, v]),
+    grey8: Array.from({ length: 8 }, (_, i) => Array(3).fill(Math.round((i * 255) / 7))),
+    gameboy: [[15, 56, 15], [48, 98, 48], [139, 172, 15], [155, 188, 15]],
+    cga1: [[0, 0, 0], [0, 255, 255], [255, 0, 255], [255, 255, 255]],
+    cyberpunk: [[12, 10, 32], [80, 20, 125], [255, 40, 160], [0, 235, 255], [255, 240, 90]],
+  };
 
   const DEFAULT_STATE = Object.freeze({
     effect: 'chars',
     ramp: 'standard',
     chars: '@#S08Xx+=-;:.',
     size: 11,
+    charOpacity: 100,
     contrast: 20,
     brightness: 0,
     coverage: 100,
     gamma: 100,
     invert: false,
+    invertMapping: false,
+    dotGrid: false,
     palette: 'source',
     bg: '#000000',
     bgTransparent: false,
@@ -841,6 +1264,10 @@
     randomize: false,
     randomAmount: 40,
     randomSeed: 7,
+    ditherAlgorithm: 'bayer8',
+    ditherPalette: 'original',
+    ditherChroma: 'standard',
+    ditherStrength: 100,
     preset: 'custom',
   });
 
@@ -850,11 +1277,14 @@
       effect: 'chars',
       ramp: 'standard',
       size: 11,
+      charOpacity: 100,
       contrast: 24,
       brightness: 2,
       coverage: 100,
       gamma: 105,
       invert: false,
+      invertMapping: false,
+      dotGrid: false,
       palette: 'tint',
       bg: '#04100a',
       bgTransparent: false,
@@ -868,11 +1298,14 @@
       effect: 'block',
       ramp: 'blocks',
       size: 16,
+      charOpacity: 100,
       contrast: 45,
       brightness: 0,
       coverage: 92,
       gamma: 95,
       invert: false,
+      invertMapping: false,
+      dotGrid: false,
       palette: 'source',
       bg: '#0a0908',
       bgTransparent: false,
@@ -886,11 +1319,17 @@
       effect: 'dither',
       ramp: 'classic',
       size: 7,
+      charOpacity: 100,
       contrast: 30,
       brightness: 6,
       coverage: 100,
       gamma: 85,
       invert: false,
+      invertMapping: false,
+      dotGrid: false,
+      ditherAlgorithm: 'atkinson',
+      ditherPalette: 'mono',
+      ditherStrength: 100,
       palette: 'mono',
       bg: '#f2ede2',
       bgTransparent: false,
@@ -904,11 +1343,14 @@
       effect: 'chars',
       ramp: 'dense',
       size: 9,
+      charOpacity: 100,
       contrast: 42,
       brightness: 2,
       coverage: 100,
       gamma: 120,
       invert: false,
+      invertMapping: false,
+      dotGrid: false,
       palette: 'tint',
       bg: '#0a0014',
       bgTransparent: false,
@@ -922,15 +1364,84 @@
       effect: 'chars',
       ramp: 'standard',
       size: 12,
+      charOpacity: 100,
       contrast: 30,
       brightness: 0,
       coverage: 96,
       gamma: 110,
       invert: false,
+      invertMapping: false,
+      dotGrid: true,
       palette: 'tint',
       bg: '#08243b',
       bgTransparent: false,
       tintColor: '#bfe6ff',
+      randomize: false,
+      randomAmount: 40,
+      randomSeed: 7,
+    },
+    braille: {
+      label: 'Braille',
+      effect: 'braille',
+      ramp: 'standard',
+      size: 9,
+      charOpacity: 100,
+      contrast: 20,
+      brightness: 0,
+      coverage: 100,
+      gamma: 100,
+      invert: false,
+      invertMapping: false,
+      dotGrid: false,
+      palette: 'tint',
+      bg: '#050b12',
+      bgTransparent: false,
+      tintColor: '#7dd3fc',
+      randomize: false,
+      randomAmount: 40,
+      randomSeed: 7,
+    },
+    halftone: {
+      label: 'Halftone',
+      effect: 'halftone',
+      ramp: 'blocks',
+      size: 8,
+      charOpacity: 100,
+      contrast: 25,
+      brightness: 0,
+      coverage: 100,
+      gamma: 100,
+      invert: false,
+      invertMapping: false,
+      dotGrid: false,
+      palette: 'source',
+      bg: '#050608',
+      bgTransparent: false,
+      tintColor: '#7dd3fc',
+      randomize: false,
+      randomAmount: 40,
+      randomSeed: 7,
+    },
+    gameboy: {
+      label: 'Game Boy',
+      effect: 'dither',
+      ramp: 'standard',
+      size: 8,
+      charOpacity: 100,
+      contrast: 35,
+      brightness: 0,
+      coverage: 100,
+      gamma: 100,
+      invert: false,
+      invertMapping: false,
+      dotGrid: false,
+      ditherAlgorithm: 'bayer8',
+      ditherPalette: 'gameboy',
+      ditherStrength: 100,
+      palette: 'tint',
+      bg: '#0f380f',
+      bgTransparent: false,
+      tintColor: '#9bbc0f',
       randomize: false,
       randomAmount: 40,
       randomSeed: 7,
@@ -990,16 +1501,15 @@
 
   /* ---------- draw primitives ---------- */
 
-  const BAYER8 = [
-     0, 32,  8, 40,  2, 34, 10, 42,
-    48, 16, 56, 24, 50, 18, 58, 26,
-    12, 44,  4, 36, 14, 46,  6, 38,
-    60, 28, 52, 20, 62, 30, 54, 22,
-     3, 35, 11, 43,  1, 33,  9, 41,
-    51, 19, 59, 27, 49, 17, 57, 25,
-    15, 47,  7, 39, 13, 45,  5, 37,
-    63, 31, 55, 23, 61, 29, 53, 21,
-  ];
+  const BAYER = { 2: [0, 2, 3, 1] };
+  for (const size of [4, 8, 16]) {
+    const half = size / 2;
+    BAYER[size] = Array.from({ length: size * size }, (_, i) => {
+      const x = i % size;
+      const y = Math.floor(i / size);
+      return 4 * BAYER[half][(y % half) * half + (x % half)] + BAYER[2][Math.floor(y / half) * 2 + Math.floor(x / half)];
+    });
+  }
 
   const sampler = document.createElement('canvas');
   const samplerCtx = sampler.getContext('2d', { willReadFrequently: true });
@@ -1021,22 +1531,29 @@
     return { r: (value >> 16) & 255, g: (value >> 8) & 255, b: value & 255 };
   }
 
-  function makeColorer(state) {
+  function colorRgb(state, r, g, b, luma) {
     if (state.palette === 'mono') {
-      return (r, g, b, luma) => {
-        const v = Math.round(16 + luma * 224);
-        return `rgb(${v},${v},${v})`;
-      };
+      const v = Math.round(16 + luma * 224);
+      return [v, v, v];
     }
     if (state.palette === 'tint') {
       const from = state.bgTransparent ? { r: 0, g: 0, b: 0 } : hexRgb(state.bg);
       const to = hexRgb(state.tintColor);
-      return (r, g, b, luma) => {
-        const t = 0.15 + 0.85 * clamp(luma, 0, 1);
-        return `rgb(${Math.round(from.r + (to.r - from.r) * t)},${Math.round(from.g + (to.g - from.g) * t)},${Math.round(from.b + (to.b - from.b) * t)})`;
-      };
+      const t = 0.15 + 0.85 * clamp(luma, 0, 1);
+      return [
+        Math.round(from.r + (to.r - from.r) * t),
+        Math.round(from.g + (to.g - from.g) * t),
+        Math.round(from.b + (to.b - from.b) * t),
+      ];
     }
-    return (r, g, b) => `rgb(${r | 0},${g | 0},${b | 0})`;
+    return [r | 0, g | 0, b | 0];
+  }
+
+  function makeColorer(state) {
+    return (r, g, b, luma) => {
+      const [cr, cg, cb] = colorRgb(state, r, g, b, luma);
+      return `rgb(${cr},${cg},${cb})`;
+    };
   }
 
   function hexToRgba(hex, alpha) {
@@ -1080,7 +1597,8 @@
   }
 
   function glyphAt(state, chars, last, luma, col, row) {
-    let index = (1 - luma) * last;
+    const effLuma = state.invertMapping ? 1 - luma : luma;
+    let index = (1 - effLuma) * last;
     if (state.randomize && state.randomAmount > 0) {
       const spread = (state.randomAmount / 100) * (last + 1);
       index += (cellNoise(col, row, state.randomSeed) - 0.5) * spread;
@@ -1122,29 +1640,218 @@
     }
   }
 
-  function drawDither(ctx, image, state, tone, threshold, grid) {
-    const { cols, rows, cellW, cellH } = grid;
+  function drawBraille(ctx, image, state, tone, threshold, grid) {
+    const { cols, rows, cellW, cellH, font } = grid;
     const sw = cols * 2;
-    const sh = rows * 2;
+    const sh = rows * 4;
     const pixels = sample(image, sw, sh);
-    const dw = cellW / 2;
-    const dh = cellH / 2;
+    const halfW = cellW / 2;
+    const halfH = cellH / 2;
     const paint = makeColorer(state);
+
+    ctx.font = font;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    for (let row = 0; row < rows; row++) {
+      const y = row * cellH + halfH;
+      for (let col = 0; col < cols; col++) {
+        let mask = 0;
+        let sr = 0, sg = 0, sb = 0, sum = 0, count = 0;
+        for (let dy = 0; dy < 4; dy++) {
+          for (let dx = 0; dx < 2; dx++) {
+            const offset = ((row * 4 + dy) * sw + col * 2 + dx) * 4;
+            if (pixels[offset + 3] < 8) continue;
+            const r = pixels[offset];
+            const g = pixels[offset + 1];
+            const b = pixels[offset + 2];
+            const luma = tone[(0.299 * r + 0.587 * g + 0.114 * b) | 0];
+            sr += r;
+            sg += g;
+            sb += b;
+            sum += luma;
+            count++;
+            const effLuma = state.invertMapping ? 1 - luma : luma;
+            if (effLuma >= threshold) mask |= BRAILLE_BITS[dy][dx];
+          }
+        }
+        if (!mask || !count) continue;
+        const glyph = String.fromCharCode(0x2800 + mask);
+        ctx.fillStyle = paint(sr / count, sg / count, sb / count, sum / count);
+        ctx.fillText(glyph, col * cellW + halfW, y);
+      }
+    }
+  }
+
+  function ditherCells(image, state, tone, threshold, grid, paint, mask) {
+    const sw = grid.cols * 2;
+    const sh = grid.rows * 2;
+    const dw = grid.cellW / 2;
+    const dh = grid.cellH / 2;
+    const pixels = sample(image, sw, sh);
+    const strength = clamp(Number(state.ditherStrength ?? 100) / 100, 0, 1);
+    const algorithm = state.ditherAlgorithm || 'bayer8';
+    const diffusion = DIFFUSION[algorithm];
+    const chroma = state.ditherChroma || 'standard';
+    const perChannel = chroma === 'perChannel';
+    const paletteKey = state.ditherPalette;
+    const palette = paletteKey && paletteKey !== 'original' ? DITHER_PALETTES[paletteKey] : null;
+    const size = algorithm.startsWith('bayer') ? Number(algorithm.slice(5)) || 8 : 8;
+    const matrix = BAYER[size] || BAYER[8];
+
+    const grade = (r, g, b, level) => {
+      if (chroma === 'luminance') return [level * 255, level * 255, level * 255];
+      if (perChannel) return [tone[r] * 255, tone[g] * 255, tone[b] * 255];
+      const scale = (level * 255) / Math.max(1, 0.299 * r + 0.587 * g + 0.114 * b);
+      return [Math.min(255, r * scale), Math.min(255, g * scale), Math.min(255, b * scale)];
+    };
+
+    const litColor = (r, g, b, level) => {
+      if (chroma === 'luminance') {
+        const v = Math.round(level * 255);
+        return colorRgb(state, v, v, v, level);
+      }
+      return colorRgb(state, r, g, b, level);
+    };
+
+    const nearest = (rr, gg, bb) => {
+      let best = palette[0];
+      let bestDist = Infinity;
+      for (const col of palette) {
+        const d = chroma === 'luminance'
+          ? (0.299 * rr + 0.587 * gg + 0.114 * bb - (0.299 * col[0] + 0.587 * col[1] + 0.114 * col[2])) ** 2
+          : (rr - col[0]) ** 2 + (gg - col[1]) ** 2 + (bb - col[2]) ** 2;
+        if (d < bestDist) {
+          bestDist = d;
+          best = col;
+        }
+      }
+      return best;
+    };
+
+    const emit = (idx, x, y, out) => {
+      if (mask && 0.299 * out[0] + 0.587 * out[1] + 0.114 * out[2] >= 128) mask[idx] = 1;
+      if (paint) paint(x * dw, y * dh, dw + 0.6, dh + 0.6, `rgb(${out[0] | 0},${out[1] | 0},${out[2] | 0})`);
+    };
+
+    if (!diffusion) {
+      for (let y = 0; y < sh; y++) {
+        for (let x = 0; x < sw; x++) {
+          const idx = y * sw + x;
+          const off = idx * 4;
+          if (pixels[off + 3] < 8) continue;
+          const r = pixels[off];
+          const g = pixels[off + 1];
+          const b = pixels[off + 2];
+          const level = tone[(0.299 * r + 0.587 * g + 0.114 * b) | 0];
+          if (level < threshold) continue;
+
+          const t = algorithm === 'whiteNoise'
+            ? cellNoise(x, y, state.randomSeed ?? 7)
+            : (matrix[(y % size) * size + (x % size)] + 0.5) / (size * size);
+          const bias = (0.5 - t) * 255 * strength;
+          const cur = grade(r, g, b, level);
+          const qr = clamp(cur[0] + bias, 0, 255);
+          const qg = clamp(cur[1] + bias, 0, 255);
+          const qb = clamp(cur[2] + bias, 0, 255);
+          const out = palette
+            ? nearest(qr, qg, qb)
+            : 0.299 * qr + 0.587 * qg + 0.114 * qb >= 127.5
+              ? litColor(r, g, b, level)
+              : [0, 0, 0];
+          emit(idx, x, y, out);
+        }
+      }
+      return;
+    }
+
+    const values = new Float32Array(sw * sh * 3);
+    for (let i = 0; i < sw * sh; i++) {
+      const off = i * 4;
+      const r = pixels[off];
+      const g = pixels[off + 1];
+      const b = pixels[off + 2];
+      const level = tone[(0.299 * r + 0.587 * g + 0.114 * b) | 0];
+      const graded = grade(r, g, b, level);
+      values[i * 3] = graded[0];
+      values[i * 3 + 1] = graded[1];
+      values[i * 3 + 2] = graded[2];
+    }
 
     for (let y = 0; y < sh; y++) {
       for (let x = 0; x < sw; x++) {
-        const offset = (y * sw + x) * 4;
-        if (pixels[offset + 3] < 8) continue;
+        const idx = y * sw + x;
+        const off = idx * 4;
+        if (pixels[off + 3] < 8) continue;
+        const r = pixels[off];
+        const g = pixels[off + 1];
+        const b = pixels[off + 2];
+        const level = tone[(0.299 * r + 0.587 * g + 0.114 * b) | 0];
+        if (level < threshold) continue;
 
-        const r = pixels[offset];
-        const g = pixels[offset + 1];
-        const b = pixels[offset + 2];
+        const curR = clamp(values[idx * 3], 0, 255);
+        const curG = clamp(values[idx * 3 + 1], 0, 255);
+        const curB = clamp(values[idx * 3 + 2], 0, 255);
+        const out = palette
+          ? nearest(curR, curG, curB)
+          : 0.299 * curR + 0.587 * curG + 0.114 * curB >= 127.5
+            ? litColor(r, g, b, level)
+            : [0, 0, 0];
+        emit(idx, x, y, out);
+
+        if (strength === 0) continue;
+        const errR = (curR - out[0]) * strength;
+        const errG = (curG - out[1]) * strength;
+        const errB = (curB - out[2]) * strength;
+        const monoErr = 0.299 * errR + 0.587 * errG + 0.114 * errB;
+        for (const [dx, dy, weight] of diffusion) {
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx < 0 || nx >= sw || ny >= sh) continue;
+          if (pixels[(ny * sw + nx) * 4 + 3] < 8) continue;
+          const n = (ny * sw + nx) * 3;
+          if (perChannel) {
+            values[n] += errR * weight;
+            values[n + 1] += errG * weight;
+            values[n + 2] += errB * weight;
+          } else {
+            values[n] += monoErr * weight;
+            values[n + 1] += monoErr * weight;
+            values[n + 2] += monoErr * weight;
+          }
+        }
+      }
+    }
+  }
+
+  function drawDither(ctx, image, state, tone, threshold, grid) {
+    ditherCells(image, state, tone, threshold, grid, (x, y, w, h, color) => {
+      ctx.fillStyle = color;
+      ctx.fillRect(x, y, w, h);
+    });
+  }
+
+  function drawHalftone(ctx, image, state, tone, threshold, width, height, grid) {
+    const pitch = Math.max(2, grid.cellW);
+    const dotsW = Math.max(1, Math.floor(width / pitch));
+    const dotsH = Math.max(1, Math.floor(height / pitch));
+    const pixels = sample(image, dotsW, dotsH);
+    const maxR = pitch * 0.62;
+    const paint = makeColorer(state);
+
+    for (let y = 0; y < dotsH; y++) {
+      for (let x = 0; x < dotsW; x++) {
+        const off = (y * dotsW + x) * 4;
+        if (pixels[off + 3] < 8) continue;
+        const r = pixels[off];
+        const g = pixels[off + 1];
+        const b = pixels[off + 2];
         const luma = tone[(0.299 * r + 0.587 * g + 0.114 * b) | 0];
         if (luma < threshold) continue;
-        if (luma < BAYER8[(y & 7) * 8 + (x & 7)] / 64) continue;
-
         ctx.fillStyle = paint(r, g, b, luma);
-        ctx.fillRect(x * dw, y * dh, dw + 0.6, dh + 0.6);
+        ctx.beginPath();
+        ctx.arc(x * pitch + pitch / 2, y * pitch + pitch / 2, Math.max(0.35, luma * maxR), 0, Math.PI * 2);
+        ctx.fill();
       }
     }
   }
@@ -1177,6 +1884,22 @@
     }
   }
 
+  function drawDotGrid(ctx, cols, rows, cellW, cellH, color) {
+    ctx.save();
+    ctx.fillStyle = color;
+    const r = Math.max(0.6, Math.min(cellW, cellH) * 0.08);
+    for (let row = 0; row < rows; row++) {
+      const y = (row + 0.5) * cellH;
+      for (let col = 0; col < cols; col++) {
+        const x = (col + 0.5) * cellW;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.restore();
+  }
+
   /* ---------- renderers ---------- */
 
   function renderAscii(canvas, image, state, outWidth, outHeight, unit) {
@@ -1194,24 +1917,11 @@
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     const effect = state.effect || 'chars';
-    const scaled = effect === 'dither';
-    const fontPx = Math.max(3, state.size * unit);
-    const font = `${fontPx}px ${GLYPH_FONT}`;
 
     paintBackdrop(ctx, image, state, canvas.width, canvas.height, unit);
-    ctx.font = font;
-    let cellW = Math.max(2, ctx.measureText('M').width);
-    let cellH = fontPx;
-    const cap = scaled ? MAX_SCALED_CELLS : MAX_CELLS;
-    let cols = Math.max(1, Math.floor(canvas.width / cellW));
-    let rows = Math.max(1, Math.floor(canvas.height / cellH));
 
-    while (cols * rows > cap) {
-      cellW *= 1.08;
-      cellH *= 1.08;
-      cols = Math.max(1, Math.floor(canvas.width / cellW));
-      rows = Math.max(1, Math.floor(canvas.height / cellH));
-    }
+    const grid = computeGrid(canvas.width, canvas.height, state, unit);
+    const { cols, rows } = grid;
 
     if (!image) {
       return { cols, rows, ms: performance.now() - started };
@@ -1219,22 +1929,56 @@
 
     const tone = makeTone(state);
     const threshold = ((100 - state.coverage) / 100) * 0.85;
-    const grid = { cols, rows, cellW, cellH, font, fontPx };
 
-    if (effect === 'dither') drawDither(ctx, image, state, tone, threshold, grid);
+    const opacity = clamp((state.charOpacity ?? 100) / 100, 0, 1);
+    ctx.save();
+    ctx.globalAlpha = opacity;
+    if (effect === 'braille') drawBraille(ctx, image, state, tone, threshold, grid);
+    else if (effect === 'dither') drawDither(ctx, image, state, tone, threshold, grid);
+    else if (effect === 'halftone') drawHalftone(ctx, image, state, tone, threshold, canvas.width, canvas.height, grid);
     else if (effect === 'block') drawBlock(ctx, image, state, tone, threshold, grid);
     else drawCharacters(ctx, image, state, tone, threshold, grid);
+    ctx.restore();
+
+    if (state.dotGrid) {
+      const dotColor = state.palette === 'tint' ? hexToRgba(state.tintColor, 0.28) : 'rgba(255, 255, 255, 0.2)';
+      drawDotGrid(ctx, cols, rows, grid.cellW, grid.cellH, dotColor);
+    }
 
     return { cols, rows, ms: performance.now() - started };
   }
 
-  let svgFontCtx = null;
-  function measureSvgCell(font) {
-    if (!svgFontCtx) {
-      svgFontCtx = document.createElement('canvas').getContext('2d');
+  let metricsCtx = null;
+  function measureCell(font) {
+    if (!metricsCtx) {
+      metricsCtx = document.createElement('canvas').getContext('2d');
     }
-    svgFontCtx.font = font;
-    return svgFontCtx.measureText('M').width;
+    metricsCtx.font = font;
+    return metricsCtx.measureText('M').width;
+  }
+
+  function computeGrid(width, height, state, unit) {
+    const effect = state.effect || 'chars';
+    const scaled = effect === 'dither' || effect === 'halftone';
+    const fontPx = Math.max(3, state.size * unit);
+    const font = `${fontPx}px ${effect === 'braille' ? BRAILLE_FONT : GLYPH_FONT}`;
+    let cellW = effect === 'dither'
+      ? fontPx
+      : effect === 'braille'
+        ? Math.max(2, fontPx * 0.6)
+        : Math.max(2, measureCell(font));
+    let cellH = fontPx;
+    const cap = scaled ? MAX_SCALED_CELLS : MAX_CELLS;
+    let cols = Math.max(1, Math.floor(width / cellW));
+    let rows = Math.max(1, Math.floor(height / cellH));
+
+    while (cols * rows > cap) {
+      cellW *= 1.08;
+      cellH *= 1.08;
+      cols = Math.max(1, Math.floor(width / cellW));
+      rows = Math.max(1, Math.floor(height / cellH));
+    }
+    return { cols, rows, cellW, cellH, font, fontPx };
   }
 
   function backdropDataUrl(source, width, height) {
@@ -1252,23 +1996,9 @@
     const width = Math.max(1, Math.round(outWidth));
     const height = Math.max(1, Math.round(outHeight));
     const effect = state.effect || 'chars';
-    const scaled = effect === 'dither';
-    const fontPx = Math.max(3, state.size * unit);
-    const font = `${fontPx}px ${GLYPH_FONT}`;
-    const cap = scaled ? MAX_SCALED_CELLS : MAX_CELLS;
+    const { cols, rows, cellW, cellH, fontPx } = computeGrid(width, height, state, unit);
 
-    let cellW = Math.max(2, measureSvgCell(font));
-    let cellH = fontPx;
-    let cols = Math.max(1, Math.floor(width / cellW));
-    let rows = Math.max(1, Math.floor(height / cellH));
-    while (cols * rows > cap) {
-      cellW *= 1.08;
-      cellH *= 1.08;
-      cols = Math.max(1, Math.floor(width / cellW));
-      rows = Math.max(1, Math.floor(height / cellH));
-    }
-
-    const title = `ASCII lab . hehe v01 — ${EFFECT_LABELS[effect] || effect} · ${cols}×${rows} cells`;
+    const title = `ASCII lab . hehe v02 — ${EFFECT_LABELS[effect] || effect} · ${cols}×${rows} cells`;
     const parts = [];
     parts.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img">`);
     parts.push(`<title>${escapeXml(title)}</title>`);
@@ -1287,32 +2017,71 @@
     if (image) {
       const tone = makeTone(state);
       const threshold = ((100 - state.coverage) / 100) * 0.85;
-      const textGroup = effect === 'chars';
+      const textGroup = effect === 'chars' || effect === 'braille';
       const paint = makeColorer(state);
+      const opacity = clamp((state.charOpacity ?? 100) / 100, 0, 1);
 
-      parts.push('<g>');
+      parts.push(`<g opacity="${fixed(opacity)}">`);
       if (textGroup) {
-        parts.push(`<defs><style>@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:400;src:url(data:font/woff2;base64,${IBM_PLEX_MONO}) format('woff2');}</style></defs>`);
-        parts.push(`<g font-family="${GLYPH_FONT.replace(/"/g, "'")}" font-size="${fixed(fontPx)}" text-anchor="middle" dominant-baseline="central">`);
+        if (effect === 'braille') {
+          parts.push(`<g font-family="${escapeXml(BRAILLE_FONT)}" font-size="${fixed(fontPx)}" text-anchor="middle" dominant-baseline="central">`);
+        } else {
+          parts.push(`<defs><style>@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:400;src:url(data:font/woff2;base64,${IBM_PLEX_MONO}) format('woff2');}</style></defs>`);
+          parts.push(`<g font-family="${GLYPH_FONT.replace(/"/g, "'")}" font-size="${fixed(fontPx)}" text-anchor="middle" dominant-baseline="central">`);
+        }
       }
 
-      if (effect === 'dither') {
+      if (effect === 'braille') {
         const sw = cols * 2;
-        const sh = rows * 2;
+        const sh = rows * 4;
         const pixels = sample(image, sw, sh);
-        const dw = cellW / 2;
-        const dh = cellH / 2;
-        for (let y = 0; y < sh; y++) {
-          for (let x = 0; x < sw; x++) {
-            const offset = (y * sw + x) * 4;
+        for (let row = 0; row < rows; row++) {
+          for (let col = 0; col < cols; col++) {
+            let mask = 0;
+            let sr = 0, sg = 0, sb = 0, sum = 0, count = 0;
+            for (let dy = 0; dy < 4; dy++) {
+              for (let dx = 0; dx < 2; dx++) {
+                const offset = ((row * 4 + dy) * sw + col * 2 + dx) * 4;
+                if (pixels[offset + 3] < 8) continue;
+                const r = pixels[offset];
+                const g = pixels[offset + 1];
+                const b = pixels[offset + 2];
+                const luma = tone[(0.299 * r + 0.587 * g + 0.114 * b) | 0];
+                sr += r;
+                sg += g;
+                sb += b;
+                sum += luma;
+                count++;
+                const effLuma = state.invertMapping ? 1 - luma : luma;
+                if (effLuma >= threshold) mask |= BRAILLE_BITS[dy][dx];
+              }
+            }
+            if (!mask || !count) continue;
+            const glyph = String.fromCharCode(0x2800 + mask);
+            parts.push(`<text x="${fixed(col * cellW + cellW / 2)}" y="${fixed(row * cellH + cellH / 2)}" fill="${paint(sr / count, sg / count, sb / count, sum / count)}">${escapeXml(glyph)}</text>`);
+          }
+        }
+      } else if (effect === 'dither') {
+        ditherCells(image, state, tone, threshold, { cols, rows, cellW, cellH }, (x, y, w, h, color) => {
+          parts.push(`<rect x="${fixed(x)}" y="${fixed(y)}" width="${fixed(w)}" height="${fixed(h)}" fill="${color}"/>`);
+        });
+      } else if (effect === 'halftone') {
+        const pitch = Math.max(2, cellW);
+        const dotsW = Math.max(1, Math.floor(width / pitch));
+        const dotsH = Math.max(1, Math.floor(height / pitch));
+        const pixels = sample(image, dotsW, dotsH);
+        const maxR = pitch * 0.62;
+        for (let y = 0; y < dotsH; y++) {
+          for (let x = 0; x < dotsW; x++) {
+            const offset = (y * dotsW + x) * 4;
             if (pixels[offset + 3] < 8) continue;
             const r = pixels[offset];
             const g = pixels[offset + 1];
             const b = pixels[offset + 2];
             const luma = tone[(0.299 * r + 0.587 * g + 0.114 * b) | 0];
             if (luma < threshold) continue;
-            if (luma < BAYER8[(y & 7) * 8 + (x & 7)] / 64) continue;
-            parts.push(`<rect x="${fixed(x * dw)}" y="${fixed(y * dh)}" width="${fixed(dw + 0.2)}" height="${fixed(dh + 0.2)}" fill="${paint(r, g, b, luma)}"/>`);
+            const radius = Math.max(0.35, luma * maxR);
+            parts.push(`<circle cx="${fixed(x * pitch + pitch / 2)}" cy="${fixed(y * pitch + pitch / 2)}" r="${fixed(radius)}" fill="${paint(r, g, b, luma)}"/>`);
           }
         }
       } else if (effect === 'block') {
@@ -1352,6 +2121,20 @@
 
       if (textGroup) parts.push('</g>');
       parts.push('</g>');
+
+      if (state.dotGrid) {
+        const dotColor = state.palette === 'tint' ? state.tintColor : '#ffffff';
+        const r = Math.max(0.6, Math.min(cellW, cellH) * 0.08);
+        parts.push(`<g fill="${escapeXml(dotColor)}" opacity="0.22">`);
+        for (let row = 0; row < rows; row++) {
+          const y = fixed((row + 0.5) * cellH);
+          for (let col = 0; col < cols; col++) {
+            const x = fixed((col + 0.5) * cellW);
+            parts.push(`<circle cx="${x}" cy="${y}" r="${fixed(r)}"/>`);
+          }
+        }
+        parts.push('</g>');
+      }
     }
 
     parts.push('</svg>');
@@ -1366,21 +2149,46 @@
   const empty = document.getElementById('empty');
   const dropVeil = document.getElementById('dropVeil');
   const panel = document.getElementById('panel');
+  const panelBody = document.getElementById('panelBody');
   const panelGrip = document.getElementById('panelGrip');
-  const glyphGroup = document.getElementById('glyphGroup');
+  const gripText = document.getElementById('gripText');
+  const panelTabs = Array.from(panel.querySelectorAll('[role="tab"]'));
+  const lookGrid = document.getElementById('lookGrid');
+  const lookName = document.getElementById('lookName');
+  const lookMore = document.getElementById('lookMore');
+  const effectSelect = document.getElementById('effect');
+  const charsControls = document.getElementById('charsControls');
+  const charsRow = document.getElementById('charsRow');
+  const randomRows = document.getElementById('randomRows');
+  const ditherControls = document.getElementById('ditherControls');
+  const ditherAlgoSelect = document.getElementById('ditherAlgorithm');
+  const ditherPaletteSelect = document.getElementById('ditherPalette');
+  const ditherColorRow = document.getElementById('ditherColorRow');
+  const charsInput = document.getElementById('charsInput');
+  const sizeLabel = document.getElementById('sizeLabel');
   const rampSelect = document.getElementById('ramp');
-  const presetSelect = document.getElementById('preset');
   const bgColor = document.getElementById('bgColor');
+  const bgColorRow = document.getElementById('bgColorRow');
+  const bgValue = document.getElementById('bgValue');
   const tintColor = document.getElementById('tintColor');
-  const transparentToggle = document.getElementById('bgTransparent');
-  const backdropSelect = document.getElementById('backdropMode');
-  const backdropBlurField = document.getElementById('backdropBlurField');
+  const tintValue = document.getElementById('tintValue');
+  const gradeBlend = document.getElementById('gradeBlend');
+  const gradeGradient = document.getElementById('gradeGradient');
+  const gradeLookName = document.getElementById('gradeLookName');
+  const gaussianRows = document.getElementById('gaussianRows');
+  const advancedToggle = document.getElementById('advancedToggle');
+  const advancedBody = document.getElementById('advancedBody');
   const resetBtn = document.getElementById('resetBtn');
   const fileInput = document.getElementById('fileInput');
   const exportMenu = document.getElementById('exportMenu');
   const toast = document.getElementById('toast');
 
   const state = { ...DEFAULT_STATE };
+  let presetBase = { ...DEFAULT_STATE };
+  let previewLook = null;
+  let moreLookIds = [];
+  let lookMoreBtn = null;
+  let moreOpen = false;
   const view = { x: 0, y: 0, z: 1 };
   const ZOOM_MIN = 0.25;
   const ZOOM_MAX = 8;
@@ -1392,6 +2200,138 @@
   let baseH = 0;
   let dirty = false;
   let toastTimer = 0;
+
+  /* ---------- color grade ---------- */
+
+  const COLOR_DEFAULT = Object.freeze({
+    filter: 'none',
+    sat: 100,
+    vibrance: 0,
+    hue: 0,
+    grayscale: 0,
+    tintOpacity: 0,
+    blend: 'multiply',
+    gradient: 'none',
+  });
+
+  const COLOR_FILTERS = {
+    none: { sat: 100, vibrance: 0, hue: 0, grayscale: 0, tintOpacity: 0, blend: 'multiply', gradient: 'none' },
+    bw: { sat: 100, vibrance: 0, hue: 0, grayscale: 100, tintOpacity: 0, blend: 'multiply', gradient: 'none' },
+    sepia: { sat: 100, vibrance: 0, hue: 0, grayscale: 100, tint: '#c9a26d', tintOpacity: 55, blend: 'color', gradient: 'none' },
+    warm: { sat: 105, vibrance: 0, hue: 0, grayscale: 0, tint: '#ff9a4d', tintOpacity: 30, blend: 'soft-light', gradient: 'none' },
+    cool: { sat: 100, vibrance: 0, hue: 0, grayscale: 0, tint: '#5aa9ff', tintOpacity: 30, blend: 'soft-light', gradient: 'none' },
+    vintage: { sat: 80, vibrance: 0, hue: -8, grayscale: 10, tint: '#dcb98f', tintOpacity: 32, blend: 'color', gradient: 'none' },
+    fade: { sat: 76, vibrance: 0, hue: 0, grayscale: 6, tint: '#dbe4ee', tintOpacity: 26, blend: 'screen', gradient: 'none' },
+    cyber: { sat: 140, vibrance: 25, hue: 35, grayscale: 0, tint: '#7b5cff', tintOpacity: 30, blend: 'color', gradient: 'none' },
+  };
+
+  const GRADIENT_MAPS = {
+    mono: [[0, 0, 0], [255, 255, 255]],
+    sepia: [[26, 16, 8], [244, 227, 200]],
+    ember: [[16, 4, 0], [255, 207, 107]],
+    mint: [[3, 20, 16], [198, 255, 214]],
+    violet: [[18, 0, 46], [0, 229, 255]],
+  };
+
+  const color = { ...COLOR_DEFAULT };
+  const colorCanvas = document.createElement('canvas');
+  const colorCtx = colorCanvas.getContext('2d', { willReadFrequently: true });
+  let colorSource = null;
+  let colorFrame = 0;
+
+  function hasColorTone() {
+    return color.sat !== 100 || color.hue !== 0 || color.grayscale !== 0 ||
+      color.vibrance !== 0 || color.tintOpacity !== 0 || color.gradient !== 'none';
+  }
+
+  function applyColorSource() {
+    if (!colorSource) {
+      image = null;
+      return;
+    }
+    if (!hasColorTone()) {
+      image = colorSource;
+      return;
+    }
+
+    try {
+      const { w, h } = sourceSize(colorSource);
+      const scale = Math.min(1, 1600 / Math.max(w, h));
+      const cw = Math.max(1, Math.round(w * scale));
+      const ch = Math.max(1, Math.round(h * scale));
+      if (colorCanvas.width !== cw) colorCanvas.width = cw;
+      if (colorCanvas.height !== ch) colorCanvas.height = ch;
+
+      const ctx = colorCtx;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = 1;
+      ctx.clearRect(0, 0, cw, ch);
+
+      const filters = [];
+      if (color.sat !== 100) filters.push(`saturate(${color.sat}%)`);
+      if (color.hue !== 0) filters.push(`hue-rotate(${color.hue}deg)`);
+      if (color.grayscale !== 0) filters.push(`grayscale(${color.grayscale}%)`);
+      ctx.filter = filters.length ? filters.join(' ') : 'none';
+      ctx.drawImage(colorSource, 0, 0, w, h, 0, 0, cw, ch);
+      ctx.filter = 'none';
+
+      const gradient = GRADIENT_MAPS[color.gradient] || null;
+      if (color.vibrance !== 0 || gradient) {
+        const frame = ctx.getImageData(0, 0, cw, ch);
+        const px = frame.data;
+        const vib = color.vibrance / 100;
+        for (let i = 0; i < px.length; i += 4) {
+          let r = px[i];
+          let g = px[i + 1];
+          let b = px[i + 2];
+          if (vib > 0) {
+            const l = 0.299 * r + 0.587 * g + 0.114 * b;
+            const hi = Math.max(r, g, b);
+            const lo = Math.min(r, g, b);
+            const sat = hi ? (hi - lo) / hi : 0;
+            const boost = 1 + vib * (1 - sat);
+            r = l + (r - l) * boost;
+            g = l + (g - l) * boost;
+            b = l + (b - l) * boost;
+          }
+          if (gradient) {
+            const t = clamp((0.299 * r + 0.587 * g + 0.114 * b) / 255, 0, 1);
+            r = gradient[0][0] + (gradient[1][0] - gradient[0][0]) * t;
+            g = gradient[0][1] + (gradient[1][1] - gradient[0][1]) * t;
+            b = gradient[0][2] + (gradient[1][2] - gradient[0][2]) * t;
+          }
+          px[i] = r;
+          px[i + 1] = g;
+          px[i + 2] = b;
+        }
+        ctx.putImageData(frame, 0, 0);
+      }
+
+      if (color.tintOpacity > 0) {
+        ctx.globalCompositeOperation = color.blend === 'normal' ? 'source-over' : color.blend;
+        ctx.globalAlpha = color.tintOpacity / 100;
+        ctx.fillStyle = state.tintColor;
+        ctx.fillRect(0, 0, cw, ch);
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = 1;
+      }
+
+      image = colorCanvas;
+    } catch (error) {
+      // A tainted local image cannot be graded; keep the original source.
+      image = colorSource;
+    }
+  }
+
+  function scheduleColor() {
+    if (colorFrame) return;
+    colorFrame = requestAnimationFrame(() => {
+      colorFrame = 0;
+      applyColorSource();
+      requestRender();
+    });
+  }
 
   function contentBox() {
     const rect = viewport.getBoundingClientRect();
@@ -1507,17 +2447,19 @@
   /* ---------- images ---------- */
 
   function setImage(source, url = '') {
-    const previous = image;
+    const previousSource = colorSource;
     if (imageUrl) URL.revokeObjectURL(imageUrl);
     imageUrl = url;
+    colorSource = source;
     image = source;
+    applyColorSource();
     empty.hidden = true;
     canvas.hidden = false;
     resetView();
     fitCanvas();
     requestRender();
-    if (previous && previous !== source && typeof previous.close === 'function') {
-      previous.close();
+    if (previousSource && previousSource !== source && typeof previousSource.close === 'function') {
+      previousSource.close();
     }
   }
 
@@ -1626,9 +2568,107 @@
 
   /* ---------- controls ---------- */
 
+  function buildLooks() {
+    const ids = Object.keys(PRESETS);
+    moreLookIds = ids.slice(7);
+
+    const makeLook = (id, row) => {
+      const preset = PRESETS[id];
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.dataset.preset = id;
+      button.setAttribute('aria-pressed', 'false');
+      if (row) {
+        const swatch = document.createElement('span');
+        swatch.className = 'look-swatch';
+        swatch.setAttribute('aria-hidden', 'true');
+        swatch.style.setProperty('--look-bg', preset.bg);
+        swatch.style.setProperty('--look-fg', preset.tintColor);
+        swatch.textContent = LOOK_GLYPHS[id] || '?';
+        const label = document.createElement('span');
+        label.textContent = preset.label;
+        button.append(swatch, label);
+      } else {
+        button.className = 'look-btn';
+        button.setAttribute('aria-label', preset.label);
+        button.title = preset.label;
+        button.style.setProperty('--look-bg', preset.bg);
+        button.style.setProperty('--look-fg', preset.tintColor);
+        button.textContent = LOOK_GLYPHS[id] || '?';
+      }
+      return button;
+    };
+
+    for (const id of ids.slice(0, 7)) lookGrid.appendChild(makeLook(id, false));
+
+    lookMoreBtn = document.createElement('button');
+    lookMoreBtn.type = 'button';
+    lookMoreBtn.className = 'look-more';
+    lookMoreBtn.id = 'lookMoreBtn';
+    lookMoreBtn.setAttribute('aria-label', 'More looks');
+    lookMoreBtn.title = 'More looks';
+    lookMoreBtn.setAttribute('aria-expanded', 'false');
+    lookMoreBtn.innerHTML = '<svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M8 3v10M3 8h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
+    lookGrid.appendChild(lookMoreBtn);
+
+    for (const id of moreLookIds) lookMore.appendChild(makeLook(id, true));
+  }
+
+  function setMore(open) {
+    moreOpen = open;
+    lookMore.hidden = !open;
+    if (lookMoreBtn) lookMoreBtn.setAttribute('aria-expanded', String(open));
+  }
+
   function markCustom() {
     state.preset = 'custom';
-    presetSelect.value = 'custom';
+    syncLook();
+    syncIndicators();
+  }
+
+  function syncIndicators() {
+    const graded = Object.keys(COLOR_DEFAULT).some((key) => color[key] !== COLOR_DEFAULT[key]);
+    const edited = graded || !presetBase || JSON.stringify(presetBase) !== JSON.stringify(state);
+    resetBtn.hidden = !edited;
+  }
+
+  function syncLook() {
+    for (const button of panel.querySelectorAll('[data-preset]')) {
+      button.setAttribute('aria-pressed', String(button.dataset.preset === state.preset));
+    }
+    if (lookMoreBtn) lookMoreBtn.classList.toggle('has-active', moreLookIds.includes(state.preset));
+    const preset = state.preset !== 'custom' ? PRESETS[state.preset] : null;
+    lookName.textContent = previewLook || (preset ? preset.label : 'Custom');
+  }
+
+  function setPreviewLook(id) {
+    const preset = PRESETS[id];
+    previewLook = preset ? preset.label : null;
+    syncLook();
+  }
+
+  function clearPreviewLook() {
+    if (!previewLook) return;
+    previewLook = null;
+    syncLook();
+  }
+
+  function backgroundMode() {
+    if (state.backdrop === 'image') return 'blurred';
+    return state.bgTransparent ? 'transparent' : 'solid';
+  }
+
+  function setBackgroundMode(mode) {
+    if (mode === 'blurred') {
+      state.backdrop = 'image';
+      state.bgTransparent = false;
+    } else {
+      state.backdrop = 'solid';
+      state.bgTransparent = mode === 'transparent';
+    }
+    markCustom();
+    syncControls();
+    requestRender();
   }
 
   function applyPreset(id) {
@@ -1641,60 +2681,193 @@
     state.backdrop = backdrop;
     state.backdropBlur = backdropBlur;
     state.preset = id;
+    previewLook = null;
+    presetBase = { ...state };
+    setMore(false);
     syncControls();
+    applyColorSource();
     requestRender();
     showToast(`Look: ${preset.label}`);
   }
 
-  function syncControls() {
-    presetSelect.value = state.preset;
-    bgColor.value = state.bg;
+  function updateFill(input) {
+    const min = Number(input.min);
+    const max = Number(input.max);
+    const raw = max > min ? ((Number(input.value) - min) / (max - min)) * 100 : 0;
+    input.style.setProperty('--fill', `${clamp(raw, 0, 100)}%`);
+  }
+
+  function setPanelTab(name) {
+    for (const tab of panelTabs) {
+      const active = tab.dataset.tab === name;
+      tab.setAttribute('aria-selected', String(active));
+      tab.tabIndex = active ? 0 : -1;
+      for (const id of (tab.getAttribute('aria-controls') || '').split(/\s+/)) {
+        const section = id ? document.getElementById(id) : null;
+        if (section) section.hidden = !active;
+      }
+    }
+    panelBody.scrollTop = 0;
+  }
+
+  function syncColorControls() {
     tintColor.value = state.tintColor;
-    bgColor.disabled = Boolean(state.bgTransparent);
-    tintColor.disabled = state.palette !== 'tint';
-    transparentToggle.disabled = state.backdrop === 'image';
-    backdropSelect.value = state.backdrop;
-    backdropBlurField.hidden = state.backdrop !== 'image';
-    applyCanvasLook();
-
-    for (const button of panel.querySelectorAll('[data-effect]')) {
-      const active = button.dataset.effect === state.effect;
-      button.classList.toggle('is-active', active);
-      button.setAttribute('aria-pressed', String(active));
+    tintValue.textContent = state.tintColor;
+    gradeBlend.value = color.blend;
+    gradeGradient.value = color.gradient;
+    for (const input of panel.querySelectorAll('input[data-color-key]')) {
+      if (input.type === 'number' && document.activeElement === input) continue;
+      input.value = color[input.dataset.colorKey];
+      if (input.type === 'range') updateFill(input);
     }
-    for (const button of panel.querySelectorAll('[data-palette]')) {
-      const active = button.dataset.palette === state.palette;
-      button.classList.toggle('is-active', active);
-      button.setAttribute('aria-pressed', String(active));
+    let activeFilter = null;
+    for (const chip of panel.querySelectorAll('[data-color-filter]')) {
+      const pressed = color.filter === chip.dataset.colorFilter;
+      chip.setAttribute('aria-pressed', String(pressed));
+      if (pressed) activeFilter = chip;
     }
-
-    rampSelect.value = state.ramp;
-    glyphGroup.disabled = state.effect !== 'chars';
-
-    for (const input of panel.querySelectorAll('input[data-key]')) {
-      const key = input.dataset.key;
-      input.value = state[key];
-      const output = document.getElementById(`${input.id}Out`);
-      if (output) output.textContent = String(state[key]);
-    }
-    for (const input of panel.querySelectorAll('input[data-flag]')) {
-      input.checked = Boolean(state[input.dataset.flag]);
+    gradeLookName.textContent = activeFilter ? activeFilter.textContent : 'Custom';
+    for (const sw of panel.querySelectorAll('[role="switch"][data-flag]')) {
+      sw.setAttribute('aria-checked', String(Boolean(state[sw.dataset.flag])));
     }
   }
 
-  function updateRange(match) {
-    const key = match.dataset.key;
-    if (!key) return;
-    state[key] = Number(match.value);
+  function applyColorFilter(id) {
+    const filter = COLOR_FILTERS[id];
+    if (!filter) return;
+    const { tint, ...preset } = filter;
+    Object.assign(color, preset, { filter: id });
+    if (tint) state.tintColor = tint;
     markCustom();
-    const output = document.getElementById(`${match.id}Out`);
-    if (output) output.textContent = match.value;
+    syncControls();
+    scheduleColor();
+  }
+
+  function updateColorRange(input) {
+    const key = input.dataset.colorKey;
+    color[key] = Number(input.value);
+    color.filter = 'custom';
+    markCustom();
+    const number = panel.querySelector(`input[type="number"][data-color-key="${key}"]`);
+    if (number) number.value = input.value;
+    syncColorControls();
+    scheduleColor();
+  }
+
+  function updateColorNumber(input, commit) {
+    const key = input.dataset.colorKey;
+    const min = Number(input.min);
+    const max = Number(input.max);
+    const raw = input.value.trim() === '' ? NaN : Number(input.value);
+
+    if (!Number.isFinite(raw)) {
+      if (commit) input.value = String(color[key]);
+      return;
+    }
+    if (!commit && (raw < min || raw > max)) return;
+
+    const value = clamp(Math.round(raw), min, max);
+    if (commit) input.value = String(value);
+    color[key] = value;
+    color.filter = 'custom';
+    markCustom();
+    const range = panel.querySelector(`input[type="range"][data-color-key="${key}"]`);
+    if (range) {
+      range.value = String(value);
+      updateFill(range);
+    }
+    syncColorControls();
+    scheduleColor();
+  }
+
+  function syncControls() {
+    applyCanvasLook();
+
+    effectSelect.value = state.effect;
+    rampSelect.value = state.ramp;
+    ditherAlgoSelect.value = state.ditherAlgorithm;
+    ditherPaletteSelect.value = state.ditherPalette;
+    bgColor.value = state.bg;
+    bgValue.textContent = state.bg;
+    if (document.activeElement !== charsInput) charsInput.value = state.chars;
+
+    charsControls.hidden = state.effect !== 'chars';
+    ditherControls.hidden = state.effect !== 'dither';
+    ditherColorRow.hidden = state.effect !== 'dither';
+    charsRow.hidden = state.ramp !== 'custom';
+    randomRows.hidden = !state.randomize;
+    const mode = backgroundMode();
+    bgColorRow.hidden = mode !== 'solid';
+    gaussianRows.hidden = mode !== 'blurred';
+
+    sizeLabel.textContent = state.effect === 'chars' ? 'Size' : state.effect === 'block' ? 'Tile size' : 'Dot size';
+
+    for (const button of panel.querySelectorAll('[data-palette]')) {
+      button.setAttribute('aria-pressed', String(button.dataset.palette === state.palette));
+    }
+    for (const button of panel.querySelectorAll('[data-bgmode]')) {
+      button.setAttribute('aria-pressed', String(button.dataset.bgmode === mode));
+    }
+    for (const button of panel.querySelectorAll('.chip[data-flag]')) {
+      button.setAttribute('aria-pressed', String(Boolean(state[button.dataset.flag])));
+    }
+
+    for (const input of panel.querySelectorAll('input[data-key]')) {
+      if (input.type === 'number' && document.activeElement === input) continue;
+      input.value = state[input.dataset.key];
+      if (input.type === 'range') updateFill(input);
+    }
+
+    gripText.textContent = `Controls · ${EFFECT_NAMES[state.effect] || 'Chars'}`;
+    syncLook();
+    syncColorControls();
+    syncIndicators();
+  }
+
+  function updateRange(input) {
+    const key = input.dataset.key;
+    if (!key) return;
+    state[key] = Number(input.value);
+    markCustom();
+    const number = panel.querySelector(`input[type="number"][data-key="${key}"]`);
+    if (number) number.value = input.value;
+    updateFill(input);
+    requestRender();
+  }
+
+  function updateNumber(input, commit) {
+    const key = input.dataset.key;
+    if (!key) return;
+    const min = Number(input.min);
+    const max = Number(input.max);
+    const raw = input.value.trim() === '' ? NaN : Number(input.value);
+
+    if (!Number.isFinite(raw)) {
+      if (commit) input.value = String(state[key]);
+      return;
+    }
+    if (!commit && (raw < min || raw > max)) return;
+
+    const value = clamp(Math.round(raw), min, max);
+    if (commit) input.value = String(value);
+    state[key] = value;
+    markCustom();
+    const range = panel.querySelector(`input[type="range"][data-key="${key}"]`);
+    if (range) {
+      range.value = String(value);
+      updateFill(range);
+    }
     requestRender();
   }
 
   function resetSettings() {
     Object.assign(state, DEFAULT_STATE);
+    Object.assign(color, COLOR_DEFAULT);
     state.chars = rampById(state.ramp).chars;
+    presetBase = { ...state };
+    previewLook = null;
+    setMore(false);
+    applyColorSource();
     syncControls();
     if (image) {
       resetView();
@@ -1707,17 +2880,18 @@
   /* ---------- exports ---------- */
 
   function renderExport(scale, opaque = false) {
-    let targetW = Math.min(Math.round(baseW * scale), MAX_EXPORT_SIDE);
-    let unit = targetW / baseW;
-    let outW = Math.round(baseW * unit);
-    let outH = Math.round(baseH * unit);
+    const { w: srcW, h: srcH } = sourceSize(image);
+    let multiplier = scale;
 
-    if (outW * outH > MAX_EXPORT_AREA) {
-      const shrink = Math.sqrt(MAX_EXPORT_AREA / (outW * outH));
-      outW = Math.max(1, Math.floor(outW * shrink));
-      outH = Math.max(1, Math.floor(outH * shrink));
-      unit = outW / baseW;
+    const longest = Math.max(srcW, srcH) * multiplier;
+    if (longest > MAX_EXPORT_SIDE) multiplier *= MAX_EXPORT_SIDE / longest;
+    if (srcW * srcH * multiplier * multiplier > MAX_EXPORT_AREA) {
+      multiplier = Math.sqrt(MAX_EXPORT_AREA / (srcW * srcH));
     }
+
+    const outW = Math.max(1, Math.round(srcW * multiplier));
+    const outH = Math.max(1, Math.round(srcH * multiplier));
+    const unit = outW / baseW;
 
     const renderState = opaque && state.bgTransparent ? { ...state, bgTransparent: false } : state;
     const target = document.createElement('canvas');
@@ -1774,41 +2948,54 @@
     const width = Math.max(1, Math.round(baseW));
     const height = Math.max(1, Math.round(baseH));
     const effect = state.effect || 'chars';
-    const scaled = effect === 'dither';
-    const fontPx = Math.max(3, state.size);
-    const font = `${fontPx}px ${GLYPH_FONT}`;
-    const cap = scaled ? MAX_SCALED_CELLS : MAX_CELLS;
-
-    let cellW = Math.max(2, measureSvgCell(font));
-    let cellH = fontPx;
-    let cols = Math.max(1, Math.floor(width / cellW));
-    let rows = Math.max(1, Math.floor(height / cellH));
-    while (cols * rows > cap) {
-      cellW *= 1.08;
-      cellH *= 1.08;
-      cols = Math.max(1, Math.floor(width / cellW));
-      rows = Math.max(1, Math.floor(height / cellH));
-    }
+    const { cols, rows, cellW, cellH } = computeGrid(width, height, state, 1);
 
     const tone = makeTone(state);
     const threshold = ((100 - state.coverage) / 100) * 0.85;
     const lines = [];
     const lumaAt = (pixels, offset) => tone[(0.299 * pixels[offset] + 0.587 * pixels[offset + 1] + 0.114 * pixels[offset + 2]) | 0];
 
-    if (effect === 'dither') {
+    if (effect === 'braille') {
+      const sw = cols * 2;
+      const sh = rows * 4;
+      const pixels = sample(image, sw, sh);
+      for (let row = 0; row < rows; row++) {
+        let line = '';
+        for (let col = 0; col < cols; col++) {
+          let mask = 0;
+          for (let dy = 0; dy < 4; dy++) {
+            for (let dx = 0; dx < 2; dx++) {
+              const offset = ((row * 4 + dy) * sw + col * 2 + dx) * 4;
+              if (pixels[offset + 3] < 8) continue;
+              const luma = lumaAt(pixels, offset);
+              const effLuma = state.invertMapping ? 1 - luma : luma;
+              if (effLuma >= threshold) mask |= BRAILLE_BITS[dy][dx];
+            }
+          }
+          line += mask ? String.fromCharCode(0x2800 + mask) : ' ';
+        }
+        lines.push(line.trimEnd());
+      }
+    } else if (effect === 'dither') {
       const sw = cols * 2;
       const sh = rows * 2;
-      const pixels = sample(image, sw, sh);
+      const mask = new Uint8Array(sw * sh);
+      ditherCells(image, state, tone, threshold, { cols, rows, cellW, cellH }, null, mask);
       for (let y = 0; y < sh; y++) {
         let line = '';
-        for (let x = 0; x < sw; x++) {
-          const offset = (y * sw + x) * 4;
-          let mark = ' ';
-          if (pixels[offset + 3] >= 8) {
-            const luma = lumaAt(pixels, offset);
-            if (luma >= threshold && luma >= BAYER8[(y & 7) * 8 + (x & 7)] / 64) mark = '█';
-          }
-          line += mark;
+        for (let x = 0; x < sw; x++) line += mask[y * sw + x] ? '█' : ' ';
+        lines.push(line.trimEnd());
+      }
+    } else if (effect === 'halftone') {
+      const pitch = Math.max(2, cellW);
+      const dotsW = Math.max(1, Math.floor(width / pitch));
+      const dotsH = Math.max(1, Math.floor(height / pitch));
+      const pixels = sample(image, dotsW, dotsH);
+      for (let y = 0; y < dotsH; y++) {
+        let line = '';
+        for (let x = 0; x < dotsW; x++) {
+          const offset = (y * dotsW + x) * 4;
+          line += pixels[offset + 3] >= 8 && lumaAt(pixels, offset) >= threshold ? '█' : ' ';
         }
         lines.push(line.trimEnd());
       }
@@ -1895,29 +3082,69 @@
   function bindControls() {
     panel.addEventListener('input', (event) => {
       const target = event.target;
-      if (target instanceof HTMLInputElement && target.type === 'range') updateRange(target);
+      if (!(target instanceof HTMLInputElement)) return;
+      if (target.type === 'range' && target.dataset.colorKey) {
+        updateColorRange(target);
+      } else if (target.type === 'number' && target.dataset.colorKey) {
+        updateColorNumber(target, false);
+      } else if (target.type === 'range' && target.dataset.key) {
+        updateRange(target);
+      } else if (target.type === 'number' && target.dataset.key) {
+        updateNumber(target, false);
+      } else if (target === charsInput) {
+        state.chars = target.value || ' ';
+        state.ramp = 'custom';
+        rampSelect.value = 'custom';
+        charsRow.hidden = false;
+        markCustom();
+        requestRender();
+      }
     });
 
     panel.addEventListener('change', (event) => {
       const target = event.target;
       if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement)) return;
 
-      if (target === presetSelect) {
-        if (target.value === 'custom') {
-          state.preset = 'custom';
-        } else {
-          applyPreset(target.value);
-        }
-      } else if (target === rampSelect) {
-        state.ramp = target.value;
-        state.chars = rampById(state.ramp).chars;
+      if (target instanceof HTMLInputElement && target.type === 'number' && target.dataset.colorKey) {
+        updateColorNumber(target, true);
+        return;
+      }
+
+      if (target instanceof HTMLInputElement && target.type === 'number' && target.dataset.key) {
+        updateNumber(target, true);
+        return;
+      }
+
+      if (target === gradeBlend || target === gradeGradient) {
+        if (target === gradeBlend) color.blend = target.value;
+        else color.gradient = target.value;
+        color.filter = 'custom';
         markCustom();
-        requestRender();
-      } else if (target === backdropSelect) {
-        state.backdrop = target.value === 'image' ? 'image' : 'solid';
-        if (state.backdrop === 'image') state.bgTransparent = false;
+        syncColorControls();
+        scheduleColor();
+      } else if (target === effectSelect) {
+        state.effect = target.value;
         markCustom();
         syncControls();
+        requestRender();
+      } else if (target === rampSelect) {
+        const previousRamp = state.ramp;
+        state.ramp = target.value;
+        if (state.ramp === 'custom') {
+          if (previousRamp !== 'custom') state.chars = rampById(previousRamp).chars;
+        } else {
+          state.chars = rampById(state.ramp).chars;
+        }
+        markCustom();
+        syncControls();
+        requestRender();
+      } else if (target === ditherAlgoSelect) {
+        state.ditherAlgorithm = target.value;
+        markCustom();
+        requestRender();
+      } else if (target === ditherPaletteSelect) {
+        state.ditherPalette = target.value;
+        markCustom();
         requestRender();
       } else if (target instanceof HTMLInputElement && target.type === 'color') {
         const key = target.dataset.color;
@@ -1925,15 +3152,8 @@
           state[key] = target.value;
           markCustom();
           syncControls();
-          requestRender();
-        }
-      } else if (target instanceof HTMLInputElement && target.type === 'checkbox') {
-        const key = target.dataset.flag;
-        if (key) {
-          state[key] = target.checked;
-          markCustom();
-          if (key === 'bgTransparent') syncControls();
-          requestRender();
+          if (key === 'tintColor') scheduleColor();
+          else requestRender();
         }
       }
     });
@@ -1942,12 +3162,30 @@
       const target = event.target;
       if (!(target instanceof Element)) return;
 
-      const effectButton = target.closest('[data-effect]');
-      if (effectButton) {
-        state.effect = effectButton.dataset.effect;
-        markCustom();
-        syncControls();
-        requestRender();
+      if (target.closest('#lookMoreBtn')) {
+        setMore(!moreOpen);
+        return;
+      }
+      if (target.closest('#advancedToggle')) {
+        const open = advancedToggle.getAttribute('aria-expanded') !== 'true';
+        advancedToggle.setAttribute('aria-expanded', String(open));
+        advancedBody.hidden = !open;
+        return;
+      }
+      if (target.closest('#resetBtn')) {
+        resetSettings();
+        return;
+      }
+
+      const lookButton = target.closest('[data-preset]');
+      if (lookButton) {
+        applyPreset(lookButton.dataset.preset);
+        return;
+      }
+
+      const filterChip = target.closest('[data-color-filter]');
+      if (filterChip) {
+        applyColorFilter(filterChip.dataset.colorFilter);
         return;
       }
 
@@ -1960,8 +3198,86 @@
         return;
       }
 
-      if (target.closest('#resetBtn')) resetSettings();
+      const bgButton = target.closest('[data-bgmode]');
+      if (bgButton) {
+        setBackgroundMode(bgButton.dataset.bgmode);
+        return;
+      }
+
+      const flagButton = target.closest('button[data-flag]');
+      if (flagButton) {
+        const key = flagButton.dataset.flag;
+        state[key] = !state[key];
+        markCustom();
+        syncControls();
+        requestRender();
+      }
     });
+
+    panel.addEventListener('mouseover', (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const button = target.closest('[data-preset]');
+      if (button) setPreviewLook(button.dataset.preset);
+    });
+
+    panel.addEventListener('mouseout', (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const button = target.closest('[data-preset]');
+      if (button && !button.contains(event.relatedTarget)) clearPreviewLook();
+    });
+
+    panel.addEventListener('focusin', (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const button = target.closest('[data-preset]');
+      if (button) setPreviewLook(button.dataset.preset);
+    });
+
+    panel.addEventListener('focusout', (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const button = target.closest('[data-preset]');
+      if (button && !button.contains(event.relatedTarget)) clearPreviewLook();
+    });
+
+    panel.addEventListener('dblclick', (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const label = target.closest('label[for]');
+      if (!label) return;
+      const input = document.getElementById(label.getAttribute('for'));
+      if (!(input instanceof HTMLInputElement) || input.type !== 'range' || input.disabled) return;
+      const colorKey = input.dataset.colorKey;
+      const key = input.dataset.key;
+      if (!colorKey && !key) return;
+      const fallback = colorKey ? COLOR_DEFAULT[colorKey] : DEFAULT_STATE[key];
+      if (typeof fallback !== 'number') return;
+      event.preventDefault();
+      input.value = String(fallback);
+      if (colorKey) {
+        color[colorKey] = fallback;
+        color.filter = 'custom';
+        updateColorRange(input);
+      } else {
+        updateRange(input);
+      }
+    });
+
+    for (const tab of panelTabs) {
+      tab.addEventListener('click', () => setPanelTab(tab.dataset.tab));
+      tab.addEventListener('keydown', (event) => {
+        if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+        event.preventDefault();
+        const index = panelTabs.indexOf(tab);
+        const next = event.key === 'Home' ? 0
+          : event.key === 'End' ? panelTabs.length - 1
+            : (index + (event.key === 'ArrowRight' ? 1 : -1) + panelTabs.length) % panelTabs.length;
+        setPanelTab(panelTabs[next].dataset.tab);
+        panelTabs[next].focus();
+      });
+    }
 
     panelGrip.addEventListener('click', () => {
       const collapsed = panel.classList.toggle('is-collapsed');
@@ -1973,6 +3289,8 @@
     document.addEventListener('click', (event) => {
       const target = event.target;
       if (!(target instanceof Element)) return;
+
+      if (moreOpen && !target.closest('#lookSection')) setMore(false);
 
       const actionEl = target.closest('[data-action]');
       if (actionEl) {
@@ -2145,6 +3463,10 @@
       if (event.key === 'Escape') {
         exportMenu.open = false;
         dropVeil.hidden = true;
+        if (moreOpen) {
+          setMore(false);
+          if (lookMoreBtn) lookMoreBtn.focus();
+        }
         return;
       }
       if (typing) return;
@@ -2191,12 +3513,14 @@
 
   function init() {
     installGlyphFont();
+    buildLooks();
     bindControls();
     bindActions();
     bindDrop();
     bindStage();
     bindResize();
     syncControls();
+    setPanelTab('render');
     paintIdle();
 
     if (window.matchMedia('(max-width: 760px)').matches) {

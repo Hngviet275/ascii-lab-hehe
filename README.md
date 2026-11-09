@@ -12,17 +12,16 @@ Most ASCII converters ship a build step, a CDN dependency or an upload. This one
 
 ## Features
 
-- **Four effects** — Characters, Braille (2×4 Unicode dot matrix), Block and Dither.
-- **Six looks** — Terminal, Poster, Newsprint, Neon, Blueprint and Game Boy, each a one-click starting point.
-- **Dither engine** — Ordered Bayer 8×8, Floyd–Steinberg error diffusion, and Atkinson (Mac '84), with retro color palettes (Game Boy DMG, CGA Mode 1, Cyberpunk Neon, Mono 1-bit).
-- **Dot Grid Overlay** — Technical blueprint / CAD dot matrix grid overlay.
-- **Glyph controls** — Five ramps, Invert Ramp toggle, and deterministic randomize with reproducible seed.
-- **Tone controls** — Size, Char Opacity (10–100%), contrast, brightness, coverage, gamma, invert.
-- **Palettes** — Source colours, monochrome, or a duotone tint.
-- **Canvas colours** — Custom background and transparent output for PNG and SVG.
-- **Backdrop modes** — Solid black, or a blurred and dimmed copy of the source image behind the glyphs, with an adjustable Gaussian blur.
-- **Bundled font** — Characters use IBM Plex Mono, embedded in the HTML so glyphs and SVG exports match offline.
-- **Exports** — PNG (1× / 2×), JPG, SVG, plus plain-text ASCII (.txt, including full Unicode Braille) and copy-to-clipboard.
+- **Three effects** — Characters, Block and Dither.
+- **Five looks** — Terminal, Poster, Newsprint, Neon and Blueprint, each a one-click starting point.
+- **Five ramps** — Standard, Classic ASCII, Dense, Blocks, Binary.
+- **Deterministic randomize** — jitter glyph choice with a seed you can reproduce.
+- **Tone controls** — size, contrast, brightness, coverage, gamma, invert.
+- **Palettes** — source colours, monochrome, or a duotone tint.
+- **Canvas colours** — custom background and transparent output for PNG and SVG.
+- **Backdrop modes** — solid black, or a blurred and dimmed copy of the source image behind the glyphs, with an adjustable Gaussian blur.
+- **Bundled font** — characters use IBM Plex Mono, embedded in the HTML so glyphs and SVG exports match offline.
+- **Exports** — PNG (1× / 2×), JPG, SVG, plus plain-text ASCII (.txt) and copy-to-clipboard.
 - **Comfortable viewing** — drag & drop, wheel zoom, pinch zoom, pan, double-click to reset.
 - **Responsive** — a floating side panel on desktop, a bottom sheet on mobile.
 - **No external requests** — styles, scripts, fonts and the demo image are bundled in the single file.

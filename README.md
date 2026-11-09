@@ -64,6 +64,10 @@ PNG 1× renders at the source image's pixel size and 2× doubles it. Exports are
 - Colour grading works on a copy of the source capped at 1600 px on the long side, so very large images export at up to 1600 px while a grade is active. Clear the grade to export at full source resolution.
 - Braille uses a system braille font (Apple Braille, Segoe UI Symbol or DejaVu Sans Mono) — the embedded IBM Plex Mono has no braille glyphs.
 
+## Release notes
+
+See [RELEASE-NOTES.md](RELEASE-NOTES.md) for what changed in each version.
+
 ## License
 
 MIT — see [LICENSE](LICENSE). The bundled IBM Plex Mono font is licensed under the SIL Open Font License 1.1 — see [docs/IBM-Plex-Mono-OFL.txt](docs/IBM-Plex-Mono-OFL.txt).

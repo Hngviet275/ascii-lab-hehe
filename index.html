@@ -1729,9 +1729,12 @@
       return best;
     };
 
-    const emit = (idx, x, y, out) => {
+    const bg = hexRgb(state.bg);
+    const paper = palette ? nearest(bg.r, bg.g, bg.b) : null;
+
+    const emit = (idx, x, y, out, on = true) => {
       if (mask && 0.299 * out[0] + 0.587 * out[1] + 0.114 * out[2] >= 128) mask[idx] = 1;
-      if (paint) paint(x * dw, y * dh, dw + 0.6, dh + 0.6, `rgb(${out[0] | 0},${out[1] | 0},${out[2] | 0})`);
+      if (paint && on) paint(x * dw, y * dh, dw + 0.6, dh + 0.6, `rgb(${out[0] | 0},${out[1] | 0},${out[2] | 0})`);
     };
 
     if (!diffusion) {
@@ -1754,12 +1757,16 @@
           const qr = clamp(cur[0] + bias, 0, 255);
           const qg = clamp(cur[1] + bias, 0, 255);
           const qb = clamp(cur[2] + bias, 0, 255);
-          const out = palette
-            ? nearest(qr, qg, qb)
-            : 0.299 * qr + 0.587 * qg + 0.114 * qb >= 127.5
-              ? litColor(r, g, b, level)
-              : [0, 0, 0];
-          emit(idx, x, y, out);
+          let out;
+          let on;
+          if (palette) {
+            out = nearest(qr, qg, qb);
+            on = out !== paper;
+          } else {
+            on = 0.299 * qr + 0.587 * qg + 0.114 * qb >= 127.5;
+            out = on ? litColor(r, g, b, level) : [0, 0, 0];
+          }
+          emit(idx, x, y, out, on);
         }
       }
       return;
@@ -1792,12 +1799,16 @@
         const curR = clamp(values[idx * 3], 0, 255);
         const curG = clamp(values[idx * 3 + 1], 0, 255);
         const curB = clamp(values[idx * 3 + 2], 0, 255);
-        const out = palette
-          ? nearest(curR, curG, curB)
-          : 0.299 * curR + 0.587 * curG + 0.114 * curB >= 127.5
-            ? litColor(r, g, b, level)
-            : [0, 0, 0];
-        emit(idx, x, y, out);
+        let out;
+        let on;
+        if (palette) {
+          out = nearest(curR, curG, curB);
+          on = out !== paper;
+        } else {
+          on = 0.299 * curR + 0.587 * curG + 0.114 * curB >= 127.5;
+          out = on ? litColor(r, g, b, level) : [0, 0, 0];
+        }
+        emit(idx, x, y, out, on);
 
         if (strength === 0) continue;
         const errR = (curR - out[0]) * strength;

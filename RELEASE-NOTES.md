@@ -9,6 +9,7 @@
 
 ### Changed
 
+- The built-in demo is now a knight-and-squire artwork, embedded as a 1400×1400 WebP so the demo keeps full detail without inflating the single file.
 - The blurred background dims the image at 25% instead of 45%, so Blurred backs keep more of the source's brightness.
 - Pixel cells use ordered dithering between the two closest palette colours, smoothing colour ramps in Mono, Grey 4/8, Game Boy, CGA and Cyberpunk modes. Original keeps clean six-level per-channel quantisation.
 

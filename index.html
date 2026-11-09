@@ -297,9 +297,12 @@
     border-radius: 7px;
     background: transparent;
     color: var(--muted);
-    font-size: 12px;
+    font-size: 11.5px;
     font-weight: 550;
     cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     transition: background 0.16s, color 0.16s, box-shadow 0.16s;
   }
 
@@ -679,12 +682,14 @@
         <option value="newsprint">Newsprint</option>
         <option value="neon">Neon</option>
         <option value="blueprint">Blueprint</option>
+        <option value="gameboy">Game Boy</option>
       </select>
     </div>
 
     <span class="field-label" id="effectLabel">Effect</span>
     <div class="seg" role="group" aria-labelledby="effectLabel">
-      <button type="button" class="seg-btn is-active" data-effect="chars" aria-pressed="true">Characters</button>
+      <button type="button" class="seg-btn is-active" data-effect="chars" aria-pressed="true">Chars</button>
+      <button type="button" class="seg-btn" data-effect="braille" aria-pressed="false">Braille</button>
       <button type="button" class="seg-btn" data-effect="block" aria-pressed="false">Block</button>
       <button type="button" class="seg-btn" data-effect="dither" aria-pressed="false">Dither</button>
     </div>
@@ -701,6 +706,11 @@
           <option value="binary">Binary</option>
         </select>
       </div>
+
+      <label class="switch-row" for="invertMapping">
+        <span>Invert Ramp</span>
+        <input type="checkbox" id="invertMapping" data-flag="invertMapping">
+      </label>
 
       <label class="switch-row" for="randomize">
         <span>Randomize</span>
@@ -720,6 +730,33 @@
       <input type="range" id="randomSeed" data-key="randomSeed" min="0" max="999" step="1" value="7">
     </fieldset>
 
+    <fieldset class="group" id="ditherGroup" hidden>
+      <legend>Dither Engine</legend>
+      <div class="inline-field">
+        <label for="ditherAlgorithm">Algo</label>
+        <select class="select" id="ditherAlgorithm">
+          <option value="bayer8">Bayer 8×8 (Ordered)</option>
+          <option value="floyd">Floyd–Steinberg</option>
+          <option value="atkinson">Atkinson (Mac '84)</option>
+        </select>
+      </div>
+      <div class="inline-field">
+        <label for="ditherPalette">Color</label>
+        <select class="select" id="ditherPalette">
+          <option value="default">Dynamic (Source/Tint)</option>
+          <option value="mono1">Mono 1-Bit (B&amp;W)</option>
+          <option value="gameboy">Game Boy DMG</option>
+          <option value="cga1">CGA Mode 1</option>
+          <option value="cyberpunk">Cyberpunk Neon</option>
+        </select>
+      </div>
+      <div class="range-head">
+        <label for="ditherStrength">Strength</label>
+        <output id="ditherStrengthOut" for="ditherStrength">100</output>
+      </div>
+      <input type="range" id="ditherStrength" data-key="ditherStrength" min="0" max="100" step="1" value="100">
+    </fieldset>
+
     <fieldset class="group" id="toneGroup">
       <legend>Tone</legend>
 
@@ -728,6 +765,12 @@
         <output id="sizeOut" for="size">11</output>
       </div>
       <input type="range" id="size" data-key="size" min="4" max="40" step="1" value="11">
+
+      <div class="range-head">
+        <label for="charOpacity">Opacity</label>
+        <output id="charOpacityOut" for="charOpacity">100</output>
+      </div>
+      <input type="range" id="charOpacity" data-key="charOpacity" min="10" max="100" step="1" value="100">
 
       <div class="range-head">
         <label for="contrast">Contrast</label>
@@ -756,6 +799,11 @@
       <label class="switch-row" for="invert">
         <span>Invert</span>
         <input type="checkbox" id="invert" data-flag="invert">
+      </label>
+
+      <label class="switch-row" for="dotGrid">
+        <span>Dot Grid Overlay</span>
+        <input type="checkbox" id="dotGrid" data-flag="dotGrid">
       </label>
     </fieldset>
 
@@ -820,18 +868,40 @@
     { id: 'binary', label: 'Binary', chars: '10 ' },
   ];
 
-  const EFFECT_LABELS = { chars: 'characters', block: 'block', dither: 'dither' };
+  const EFFECT_LABELS = { chars: 'characters', braille: 'braille', block: 'block', dither: 'dither' };
+
+  const BRAILLE_BITS = [
+    [0x01, 0x08],
+    [0x02, 0x10],
+    [0x04, 0x20],
+    [0x40, 0x80],
+  ];
+
+  const DIFFUSION = {
+    floyd: [[1, 0, 7 / 16], [-1, 1, 3 / 16], [0, 1, 5 / 16], [1, 1, 1 / 16]],
+    atkinson: [[1, 0, 1 / 8], [2, 0, 1 / 8], [-1, 1, 1 / 8], [0, 1, 1 / 8], [1, 1, 1 / 8], [0, 2, 1 / 8]],
+  };
+
+  const DITHER_PALETTES = {
+    mono1: [[0, 0, 0], [255, 255, 255]],
+    gameboy: [[15, 56, 15], [48, 98, 48], [139, 172, 15], [155, 188, 15]],
+    cga1: [[0, 0, 0], [0, 255, 255], [255, 0, 255], [255, 255, 255]],
+    cyberpunk: [[12, 10, 32], [80, 20, 125], [255, 40, 160], [0, 235, 255], [255, 240, 90]],
+  };
 
   const DEFAULT_STATE = Object.freeze({
     effect: 'chars',
     ramp: 'standard',
     chars: '@#S08Xx+=-;:.',
     size: 11,
+    charOpacity: 100,
     contrast: 20,
     brightness: 0,
     coverage: 100,
     gamma: 100,
     invert: false,
+    invertMapping: false,
+    dotGrid: false,
     palette: 'source',
     bg: '#000000',
     bgTransparent: false,
@@ -841,6 +911,9 @@
     randomize: false,
     randomAmount: 40,
     randomSeed: 7,
+    ditherAlgorithm: 'bayer8',
+    ditherPalette: 'default',
+    ditherStrength: 100,
     preset: 'custom',
   });
 
@@ -850,11 +923,14 @@
       effect: 'chars',
       ramp: 'standard',
       size: 11,
+      charOpacity: 100,
       contrast: 24,
       brightness: 2,
       coverage: 100,
       gamma: 105,
       invert: false,
+      invertMapping: false,
+      dotGrid: false,
       palette: 'tint',
       bg: '#04100a',
       bgTransparent: false,
@@ -868,11 +944,14 @@
       effect: 'block',
       ramp: 'blocks',
       size: 16,
+      charOpacity: 100,
       contrast: 45,
       brightness: 0,
       coverage: 92,
       gamma: 95,
       invert: false,
+      invertMapping: false,
+      dotGrid: false,
       palette: 'source',
       bg: '#0a0908',
       bgTransparent: false,
@@ -886,11 +965,17 @@
       effect: 'dither',
       ramp: 'classic',
       size: 7,
+      charOpacity: 100,
       contrast: 30,
       brightness: 6,
       coverage: 100,
       gamma: 85,
       invert: false,
+      invertMapping: false,
+      dotGrid: false,
+      ditherAlgorithm: 'atkinson',
+      ditherPalette: 'mono1',
+      ditherStrength: 100,
       palette: 'mono',
       bg: '#f2ede2',
       bgTransparent: false,
@@ -904,11 +989,14 @@
       effect: 'chars',
       ramp: 'dense',
       size: 9,
+      charOpacity: 100,
       contrast: 42,
       brightness: 2,
       coverage: 100,
       gamma: 120,
       invert: false,
+      invertMapping: false,
+      dotGrid: false,
       palette: 'tint',
       bg: '#0a0014',
       bgTransparent: false,
@@ -922,15 +1010,42 @@
       effect: 'chars',
       ramp: 'standard',
       size: 12,
+      charOpacity: 100,
       contrast: 30,
       brightness: 0,
       coverage: 96,
       gamma: 110,
       invert: false,
+      invertMapping: false,
+      dotGrid: true,
       palette: 'tint',
       bg: '#08243b',
       bgTransparent: false,
       tintColor: '#bfe6ff',
+      randomize: false,
+      randomAmount: 40,
+      randomSeed: 7,
+    },
+    gameboy: {
+      label: 'Game Boy',
+      effect: 'dither',
+      ramp: 'standard',
+      size: 8,
+      charOpacity: 100,
+      contrast: 35,
+      brightness: 0,
+      coverage: 100,
+      gamma: 100,
+      invert: false,
+      invertMapping: false,
+      dotGrid: false,
+      ditherAlgorithm: 'bayer8',
+      ditherPalette: 'gameboy',
+      ditherStrength: 100,
+      palette: 'tint',
+      bg: '#0f380f',
+      bgTransparent: false,
+      tintColor: '#9bbc0f',
       randomize: false,
       randomAmount: 40,
       randomSeed: 7,
@@ -1080,7 +1195,8 @@
   }
 
   function glyphAt(state, chars, last, luma, col, row) {
-    let index = (1 - luma) * last;
+    const effLuma = state.invertMapping ? 1 - luma : luma;
+    let index = (1 - effLuma) * last;
     if (state.randomize && state.randomAmount > 0) {
       const spread = (state.randomAmount / 100) * (last + 1);
       index += (cellNoise(col, row, state.randomSeed) - 0.5) * spread;
@@ -1122,31 +1238,186 @@
     }
   }
 
-  function drawDither(ctx, image, state, tone, threshold, grid) {
+  function drawBraille(ctx, image, state, tone, threshold, grid) {
+    const { cols, rows, cellW, cellH, font } = grid;
+    const sw = cols * 2;
+    const sh = rows * 4;
+    const pixels = sample(image, sw, sh);
+    const halfW = cellW / 2;
+    const halfH = cellH / 2;
+    const paint = makeColorer(state);
+
+    ctx.font = font;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    for (let row = 0; row < rows; row++) {
+      const y = row * cellH + halfH;
+      for (let col = 0; col < cols; col++) {
+        let mask = 0;
+        let sr = 0, sg = 0, sb = 0, sum = 0, count = 0;
+        for (let dy = 0; dy < 4; dy++) {
+          for (let dx = 0; dx < 2; dx++) {
+            const offset = ((row * 4 + dy) * sw + col * 2 + dx) * 4;
+            if (pixels[offset + 3] < 8) continue;
+            const r = pixels[offset];
+            const g = pixels[offset + 1];
+            const b = pixels[offset + 2];
+            const luma = tone[(0.299 * r + 0.587 * g + 0.114 * b) | 0];
+            sr += r;
+            sg += g;
+            sb += b;
+            sum += luma;
+            count++;
+            const effLuma = state.invertMapping ? 1 - luma : luma;
+            if (effLuma >= threshold) mask |= BRAILLE_BITS[dy][dx];
+          }
+        }
+        if (!mask || !count) continue;
+        const glyph = String.fromCharCode(0x2800 + mask);
+        ctx.fillStyle = paint(sr / count, sg / count, sb / count, sum / count);
+        ctx.fillText(glyph, col * cellW + halfW, y);
+      }
+    }
+  }
+
+  function ditherCells(image, state, tone, threshold, grid, paint) {
     const { cols, rows, cellW, cellH } = grid;
     const sw = cols * 2;
     const sh = rows * 2;
-    const pixels = sample(image, sw, sh);
     const dw = cellW / 2;
     const dh = cellH / 2;
-    const paint = makeColorer(state);
+    const pixels = sample(image, sw, sh);
+    const algorithm = state.ditherAlgorithm || 'bayer8';
+    const strength = Math.max(0, Math.min(100, state.ditherStrength ?? 100)) / 100;
+    const diffusion = DIFFUSION[algorithm];
+    const paletteKey = state.ditherPalette;
+    const palette = (paletteKey && paletteKey !== 'default') ? DITHER_PALETTES[paletteKey] : null;
+    const defaultColorer = makeColorer(state);
 
-    for (let y = 0; y < sh; y++) {
-      for (let x = 0; x < sw; x++) {
-        const offset = (y * sw + x) * 4;
-        if (pixels[offset + 3] < 8) continue;
-
-        const r = pixels[offset];
-        const g = pixels[offset + 1];
-        const b = pixels[offset + 2];
+    if (diffusion) {
+      const values = new Float32Array(sw * sh * 3);
+      for (let i = 0; i < sw * sh; i++) {
+        const off = i * 4;
+        const r = pixels[off];
+        const g = pixels[off + 1];
+        const b = pixels[off + 2];
         const luma = tone[(0.299 * r + 0.587 * g + 0.114 * b) | 0];
-        if (luma < threshold) continue;
-        if (luma < BAYER8[(y & 7) * 8 + (x & 7)] / 64) continue;
+        values[i * 3] = r * luma;
+        values[i * 3 + 1] = g * luma;
+        values[i * 3 + 2] = b * luma;
+      }
 
-        ctx.fillStyle = paint(r, g, b, luma);
-        ctx.fillRect(x * dw, y * dh, dw + 0.6, dh + 0.6);
+      for (let y = 0; y < sh; y++) {
+        for (let x = 0; x < sw; x++) {
+          const idx = y * sw + x;
+          const off = idx * 4;
+          if (pixels[off + 3] < 8) continue;
+          const r = pixels[off];
+          const g = pixels[off + 1];
+          const b = pixels[off + 2];
+          const luma = tone[(0.299 * r + 0.587 * g + 0.114 * b) | 0];
+          if (luma < threshold) continue;
+
+          const curR = Math.max(0, Math.min(255, values[idx * 3]));
+          const curG = Math.max(0, Math.min(255, values[idx * 3 + 1]));
+          const curB = Math.max(0, Math.min(255, values[idx * 3 + 2]));
+          const curLuma = (0.299 * curR + 0.587 * curG + 0.114 * curB) / 255;
+
+          let outColorStr;
+          let outR, outG, outB;
+
+          if (palette) {
+            let bestDist = Infinity;
+            let bestColor = palette[0];
+            for (const col of palette) {
+              const d = (curR - col[0]) ** 2 + (curG - col[1]) ** 2 + (curB - col[2]) ** 2;
+              if (d < bestDist) {
+                bestDist = d;
+                bestColor = col;
+              }
+            }
+            outR = bestColor[0];
+            outG = bestColor[1];
+            outB = bestColor[2];
+            outColorStr = `rgb(${outR},${outG},${outB})`;
+          } else {
+            if (curLuma >= 0.5) {
+              outColorStr = defaultColorer(r, g, b, luma);
+              outR = 255;
+              outG = 255;
+              outB = 255;
+            } else {
+              outR = 0;
+              outG = 0;
+              outB = 0;
+              outColorStr = null;
+            }
+          }
+
+          if (outColorStr) {
+            paint(x * dw, y * dh, dw + 0.6, dh + 0.6, outColorStr);
+          }
+
+          if (strength > 0) {
+            const errR = (curR - outR) * strength;
+            const errG = (curG - outG) * strength;
+            const errB = (curB - outB) * strength;
+            for (const [dx, dy, weight] of diffusion) {
+              const nx = x + dx;
+              const ny = y + dy;
+              if (nx >= 0 && nx < sw && ny >= 0 && ny < sh) {
+                const nIdx = (ny * sw + nx) * 3;
+                values[nIdx] += errR * weight;
+                values[nIdx + 1] += errG * weight;
+                values[nIdx + 2] += errB * weight;
+              }
+            }
+          }
+        }
+      }
+    } else {
+      for (let y = 0; y < sh; y++) {
+        for (let x = 0; x < sw; x++) {
+          const off = (y * sw + x) * 4;
+          if (pixels[off + 3] < 8) continue;
+          const r = pixels[off];
+          const g = pixels[off + 1];
+          const b = pixels[off + 2];
+          const luma = tone[(0.299 * r + 0.587 * g + 0.114 * b) | 0];
+          if (luma < threshold) continue;
+
+          const bayerThreshold = (BAYER8[(y & 7) * 8 + (x & 7)] + 0.5) / 64;
+          const effectiveLuma = luma + (0.5 - bayerThreshold) * strength;
+
+          if (palette) {
+            let bestDist = Infinity;
+            let bestColor = palette[0];
+            const sampleR = r * effectiveLuma;
+            const sampleG = g * effectiveLuma;
+            const sampleB = b * effectiveLuma;
+            for (const col of palette) {
+              const d = (sampleR - col[0]) ** 2 + (sampleG - col[1]) ** 2 + (sampleB - col[2]) ** 2;
+              if (d < bestDist) {
+                bestDist = d;
+                bestColor = col;
+              }
+            }
+            paint(x * dw, y * dh, dw + 0.6, dh + 0.6, `rgb(${bestColor[0]},${bestColor[1]},${bestColor[2]})`);
+          } else {
+            if (effectiveLuma < 0.5) continue;
+            paint(x * dw, y * dh, dw + 0.6, dh + 0.6, defaultColorer(r, g, b, luma));
+          }
+        }
       }
     }
+  }
+
+  function drawDither(ctx, image, state, tone, threshold, grid) {
+    ditherCells(image, state, tone, threshold, grid, (x, y, w, h, color) => {
+      ctx.fillStyle = color;
+      ctx.fillRect(x, y, w, h);
+    });
   }
 
   function drawBlock(ctx, image, state, tone, threshold, grid) {
@@ -1175,6 +1446,22 @@
         );
       }
     }
+  }
+
+  function drawDotGrid(ctx, cols, rows, cellW, cellH, color) {
+    ctx.save();
+    ctx.fillStyle = color;
+    const r = Math.max(0.6, Math.min(cellW, cellH) * 0.08);
+    for (let row = 0; row < rows; row++) {
+      const y = (row + 0.5) * cellH;
+      for (let col = 0; col < cols; col++) {
+        const x = (col + 0.5) * cellW;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.restore();
   }
 
   /* ---------- renderers ---------- */
@@ -1221,9 +1508,19 @@
     const threshold = ((100 - state.coverage) / 100) * 0.85;
     const grid = { cols, rows, cellW, cellH, font, fontPx };
 
-    if (effect === 'dither') drawDither(ctx, image, state, tone, threshold, grid);
+    const opacity = Math.max(0.1, Math.min(1, (state.charOpacity ?? 100) / 100));
+    ctx.save();
+    ctx.globalAlpha = opacity;
+    if (effect === 'braille') drawBraille(ctx, image, state, tone, threshold, grid);
+    else if (effect === 'dither') drawDither(ctx, image, state, tone, threshold, grid);
     else if (effect === 'block') drawBlock(ctx, image, state, tone, threshold, grid);
     else drawCharacters(ctx, image, state, tone, threshold, grid);
+    ctx.restore();
+
+    if (state.dotGrid) {
+      const dotColor = state.palette === 'tint' ? hexToRgba(state.tintColor, 0.28) : 'rgba(255, 255, 255, 0.2)';
+      drawDotGrid(ctx, cols, rows, cellW, cellH, dotColor);
+    }
 
     return { cols, rows, ms: performance.now() - started };
   }
@@ -1287,34 +1584,50 @@
     if (image) {
       const tone = makeTone(state);
       const threshold = ((100 - state.coverage) / 100) * 0.85;
-      const textGroup = effect === 'chars';
+      const textGroup = effect === 'chars' || effect === 'braille';
       const paint = makeColorer(state);
+      const opacity = Math.max(0.1, Math.min(1, (state.charOpacity ?? 100) / 100));
 
-      parts.push('<g>');
+      parts.push(`<g opacity="${fixed(opacity)}">`);
       if (textGroup) {
         parts.push(`<defs><style>@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:400;src:url(data:font/woff2;base64,${IBM_PLEX_MONO}) format('woff2');}</style></defs>`);
         parts.push(`<g font-family="${GLYPH_FONT.replace(/"/g, "'")}" font-size="${fixed(fontPx)}" text-anchor="middle" dominant-baseline="central">`);
       }
 
-      if (effect === 'dither') {
+      if (effect === 'braille') {
         const sw = cols * 2;
-        const sh = rows * 2;
+        const sh = rows * 4;
         const pixels = sample(image, sw, sh);
-        const dw = cellW / 2;
-        const dh = cellH / 2;
-        for (let y = 0; y < sh; y++) {
-          for (let x = 0; x < sw; x++) {
-            const offset = (y * sw + x) * 4;
-            if (pixels[offset + 3] < 8) continue;
-            const r = pixels[offset];
-            const g = pixels[offset + 1];
-            const b = pixels[offset + 2];
-            const luma = tone[(0.299 * r + 0.587 * g + 0.114 * b) | 0];
-            if (luma < threshold) continue;
-            if (luma < BAYER8[(y & 7) * 8 + (x & 7)] / 64) continue;
-            parts.push(`<rect x="${fixed(x * dw)}" y="${fixed(y * dh)}" width="${fixed(dw + 0.2)}" height="${fixed(dh + 0.2)}" fill="${paint(r, g, b, luma)}"/>`);
+        for (let row = 0; row < rows; row++) {
+          for (let col = 0; col < cols; col++) {
+            let mask = 0;
+            let sr = 0, sg = 0, sb = 0, sum = 0, count = 0;
+            for (let dy = 0; dy < 4; dy++) {
+              for (let dx = 0; dx < 2; dx++) {
+                const offset = ((row * 4 + dy) * sw + col * 2 + dx) * 4;
+                if (pixels[offset + 3] < 8) continue;
+                const r = pixels[offset];
+                const g = pixels[offset + 1];
+                const b = pixels[offset + 2];
+                const luma = tone[(0.299 * r + 0.587 * g + 0.114 * b) | 0];
+                sr += r;
+                sg += g;
+                sb += b;
+                sum += luma;
+                count++;
+                const effLuma = state.invertMapping ? 1 - luma : luma;
+                if (effLuma >= threshold) mask |= BRAILLE_BITS[dy][dx];
+              }
+            }
+            if (!mask || !count) continue;
+            const glyph = String.fromCharCode(0x2800 + mask);
+            parts.push(`<text x="${fixed(col * cellW + cellW / 2)}" y="${fixed(row * cellH + cellH / 2)}" fill="${paint(sr / count, sg / count, sb / count, sum / count)}">${escapeXml(glyph)}</text>`);
           }
         }
+      } else if (effect === 'dither') {
+        ditherCells(image, state, tone, threshold, { cols, rows, cellW, cellH }, (x, y, w, h, color) => {
+          parts.push(`<rect x="${fixed(x)}" y="${fixed(y)}" width="${fixed(w)}" height="${fixed(h)}" fill="${color}"/>`);
+        });
       } else if (effect === 'block') {
         const pixels = sample(image, cols, rows);
         const gap = Math.min(2, cellW * 0.08);
@@ -1352,6 +1665,20 @@
 
       if (textGroup) parts.push('</g>');
       parts.push('</g>');
+
+      if (state.dotGrid) {
+        const dotColor = state.palette === 'tint' ? state.tintColor : '#ffffff';
+        const r = Math.max(0.6, Math.min(cellW, cellH) * 0.08);
+        parts.push(`<g fill="${escapeXml(dotColor)}" opacity="0.22">`);
+        for (let row = 0; row < rows; row++) {
+          const y = fixed((row + 0.5) * cellH);
+          for (let col = 0; col < cols; col++) {
+            const x = fixed((col + 0.5) * cellW);
+            parts.push(`<circle cx="${x}" cy="${y}" r="${fixed(r)}"/>`);
+          }
+        }
+        parts.push('</g>');
+      }
     }
 
     parts.push('</svg>');
@@ -1368,6 +1695,9 @@
   const panel = document.getElementById('panel');
   const panelGrip = document.getElementById('panelGrip');
   const glyphGroup = document.getElementById('glyphGroup');
+  const ditherGroup = document.getElementById('ditherGroup');
+  const ditherAlgoSelect = document.getElementById('ditherAlgorithm');
+  const ditherPaletteSelect = document.getElementById('ditherPalette');
   const rampSelect = document.getElementById('ramp');
   const presetSelect = document.getElementById('preset');
   const bgColor = document.getElementById('bgColor');
@@ -1670,6 +2000,9 @@
 
     rampSelect.value = state.ramp;
     glyphGroup.disabled = state.effect !== 'chars';
+    if (ditherGroup) ditherGroup.hidden = state.effect !== 'dither';
+    if (ditherAlgoSelect) ditherAlgoSelect.value = state.ditherAlgorithm || 'bayer8';
+    if (ditherPaletteSelect) ditherPaletteSelect.value = state.ditherPalette || 'default';
 
     for (const input of panel.querySelectorAll('input[data-key]')) {
       const key = input.dataset.key;
@@ -1795,7 +2128,28 @@
     const lines = [];
     const lumaAt = (pixels, offset) => tone[(0.299 * pixels[offset] + 0.587 * pixels[offset + 1] + 0.114 * pixels[offset + 2]) | 0];
 
-    if (effect === 'dither') {
+    if (effect === 'braille') {
+      const sw = cols * 2;
+      const sh = rows * 4;
+      const pixels = sample(image, sw, sh);
+      for (let row = 0; row < rows; row++) {
+        let line = '';
+        for (let col = 0; col < cols; col++) {
+          let mask = 0;
+          for (let dy = 0; dy < 4; dy++) {
+            for (let dx = 0; dx < 2; dx++) {
+              const offset = ((row * 4 + dy) * sw + col * 2 + dx) * 4;
+              if (pixels[offset + 3] < 8) continue;
+              const luma = lumaAt(pixels, offset);
+              const effLuma = state.invertMapping ? 1 - luma : luma;
+              if (effLuma >= threshold) mask |= BRAILLE_BITS[dy][dx];
+            }
+          }
+          line += mask ? String.fromCharCode(0x2800 + mask) : ' ';
+        }
+        lines.push(line.trimEnd());
+      }
+    } else if (effect === 'dither') {
       const sw = cols * 2;
       const sh = rows * 2;
       const pixels = sample(image, sw, sh);
@@ -1911,6 +2265,14 @@
       } else if (target === rampSelect) {
         state.ramp = target.value;
         state.chars = rampById(state.ramp).chars;
+        markCustom();
+        requestRender();
+      } else if (target === ditherAlgoSelect) {
+        state.ditherAlgorithm = target.value;
+        markCustom();
+        requestRender();
+      } else if (target === ditherPaletteSelect) {
+        state.ditherPalette = target.value;
         markCustom();
         requestRender();
       } else if (target === backdropSelect) {

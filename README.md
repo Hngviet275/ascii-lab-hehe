@@ -12,7 +12,8 @@ Most ASCII converters ship a build step, a CDN dependency or an upload. This one
 
 ## Features
 
-- **Five effects** — Characters, Braille (2×4 Unicode dot matrix), Block, Dither and Halftone.
+- **Six effects** — Characters, Braille (2×4 Unicode dot matrix), Block, Pixel, Dither and Halftone.
+- **Pixel effect** — nearest-neighbour sampling with a six-level colour quantisation and a 1 px gutter for a crisp retro pixel-art look. A **Color mode** in the Color tab maps the cells to Original, Mono, Grey 4/8, Game Boy, CGA or Cyberpunk palettes, using ordered dithering between the two closest colours so palette ramps stay smooth.
 - **Eight looks** — Terminal, Poster, Newsprint, Neon, Blueprint, Braille, Halftone and Game Boy, each a one-click starting point.
 - **Dither engine** — Bayer 8×8, Floyd–Steinberg, Atkinson and White Noise, with Mono, Grey 4, Grey 8, Game Boy, CGA and Cyberpunk palettes and a strength control; dither colours live in the Color tab.
 - **Glyph controls** — five ramps plus a free-text custom charset, invert ramp, and deterministic randomize with a reproducible seed.
@@ -21,7 +22,7 @@ Most ASCII converters ship a build step, a CDN dependency or an upload. This one
 - **Palettes** — source colours, monochrome, or a duotone tint.
 - **Colour grade** — eight filters (B&W, Sepia, Warm, Cool, Vintage, Fade, Cyber) plus tint colour, tint opacity, blend mode, saturation, vibrance, hue, gradient map, grayscale and invert. The grade is applied to the source, so previews and every export stay in sync. The tint colour is shared with the duotone palette, so there is one tint control for both.
 - **Canvas colours** — custom background and transparent output for PNG and SVG.
-- **Background modes** — solid colour, transparent, or a blurred and dimmed copy of the source image behind the glyphs, with an adjustable Gaussian blur.
+- **Background modes** — solid colour, transparent, or a blurred copy of the source image behind the glyphs with a light 25% dim and an adjustable Gaussian blur.
 - **Bundled font** — characters use IBM Plex Mono, embedded in the HTML so glyphs and SVG exports match offline.
 - **Exports** — PNG (1× / 2× at source resolution), JPG, SVG, plus plain-text ASCII (.txt) and copy-to-clipboard.
 - **Comfortable viewing** — drag & drop, wheel zoom, pinch zoom, pan, double-click to reset.
@@ -60,7 +61,7 @@ PNG 1× renders at the source image's pixel size and 2× doubles it. Exports are
 - Static images only (no video).
 - Canvas resolution is capped at 2× device pixel ratio for smooth interaction.
 - Randomize applies to the Characters effect only.
-- TXT export is exact for Characters and Braille; Dither, Halftone and Block are approximated with `█`.
+- TXT export is exact for Characters and Braille; Dither, Halftone, Block and Pixel are approximated with `█`.
 - Colour grading works on a copy of the source capped at 1600 px on the long side, so very large images export at up to 1600 px while a grade is active. Clear the grade to export at full source resolution.
 - Braille uses a system braille font (Apple Braille, Segoe UI Symbol or DejaVu Sans Mono) — the embedded IBM Plex Mono has no braille glyphs.
 

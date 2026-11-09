@@ -908,6 +908,7 @@
           <option value="chars">Chars</option>
           <option value="braille">Braille</option>
           <option value="block">Block</option>
+          <option value="pixel">Pixel</option>
           <option value="dither">Dither</option>
           <option value="halftone">Halftone</option>
         </select>
@@ -1031,6 +1032,19 @@
         <label for="ditherPalette" class="row-label">Dither colors</label>
         <select class="select" id="ditherPalette">
           <option value="original">Original (dynamic)</option>
+          <option value="mono">Mono</option>
+          <option value="grey4">Grey 4</option>
+          <option value="grey8">Grey 8</option>
+          <option value="gameboy">Game Boy DMG</option>
+          <option value="cga1">CGA Mode 1</option>
+          <option value="cyberpunk">Cyberpunk Neon</option>
+        </select>
+      </div>
+
+      <div class="row" id="pixelColorRow" hidden>
+        <label for="pixelPalette" class="row-label">Color mode</label>
+        <select class="select" id="pixelPalette">
+          <option value="original">Original</option>
           <option value="mono">Mono</option>
           <option value="grey4">Grey 4</option>
           <option value="grey8">Grey 8</option>
@@ -1217,8 +1231,8 @@
     { id: 'binary', label: 'Binary', chars: '10 ' },
   ];
 
-  const EFFECT_LABELS = { chars: 'characters', braille: 'braille', block: 'block', dither: 'dither', halftone: 'halftone' };
-  const EFFECT_NAMES = { chars: 'Chars', braille: 'Braille', block: 'Block', dither: 'Dither', halftone: 'Halftone' };
+  const EFFECT_LABELS = { chars: 'characters', braille: 'braille', block: 'block', pixel: 'pixel', dither: 'dither', halftone: 'halftone' };
+  const EFFECT_NAMES = { chars: 'Chars', braille: 'Braille', block: 'Block', pixel: 'Pixel', dither: 'Dither', halftone: 'Halftone' };
   const LOOK_GLYPHS = { terminal: '@', poster: '█', newsprint: '▚', neon: '$', blueprint: '#', braille: '⣿', halftone: '●', gameboy: '▚' };
 
   const BRAILLE_BITS = [
@@ -1266,6 +1280,7 @@
     randomSeed: 7,
     ditherAlgorithm: 'bayer8',
     ditherPalette: 'original',
+    pixelPalette: 'original',
     ditherChroma: 'standard',
     ditherStrength: 100,
     preset: 'custom',
@@ -1525,6 +1540,16 @@
     return samplerCtx.getImageData(0, 0, sampler.width, sampler.height).data;
   }
 
+  function sampleNearest(image, width, height) {
+    const { w: iw, h: ih } = sourceSize(image);
+    sampler.width = Math.max(1, width);
+    sampler.height = Math.max(1, height);
+    samplerCtx.clearRect(0, 0, sampler.width, sampler.height);
+    samplerCtx.imageSmoothingEnabled = false;
+    samplerCtx.drawImage(image, 0, 0, iw, ih, 0, 0, sampler.width, sampler.height);
+    return samplerCtx.getImageData(0, 0, sampler.width, sampler.height).data;
+  }
+
   function hexRgb(hex) {
     const match = /^#?([0-9a-f]{6})$/i.exec(hex || '');
     const value = match ? parseInt(match[1], 16) : 0;
@@ -1584,7 +1609,7 @@
     }
     drawCover(ctx, image, width, height);
     if (typeof ctx.filter === 'string') ctx.filter = 'none';
-    ctx.fillStyle = hexToRgba(state.bg, 0.45);
+    ctx.fillStyle = hexToRgba(state.bg, 0.25);
     ctx.fillRect(0, 0, width, height);
     ctx.restore();
   }
@@ -1895,6 +1920,83 @@
     }
   }
 
+  function ditherThreshold(x, y) {
+    return (BAYER[8][(y % 8) * 8 + (x % 8)] + 0.5) / 64;
+  }
+
+  function quantizeChannel(value) {
+    const level = clamp(Math.floor(value / 255 * 5 + 0.5), 0, 5);
+    return Math.round(255 * level / 5);
+  }
+
+  function paletteColor(palette, r, g, b, threshold) {
+    let first = palette[0];
+    let second = null;
+    let distFirst = Infinity;
+    let distSecond = Infinity;
+    for (const color of palette) {
+      const dist = (r - color[0]) ** 2 + (g - color[1]) ** 2 + (b - color[2]) ** 2;
+      if (dist < distFirst) {
+        distSecond = distFirst;
+        second = first;
+        distFirst = dist;
+        first = color;
+      } else if (dist < distSecond) {
+        distSecond = dist;
+        second = color;
+      }
+    }
+    if (!second) return first;
+
+    const vx = second[0] - first[0];
+    const vy = second[1] - first[1];
+    const vz = second[2] - first[2];
+    const length = vx * vx + vy * vy + vz * vz;
+    if (!length) return first;
+    const mix = clamp(((r - first[0]) * vx + (g - first[1]) * vy + (b - first[2]) * vz) / length, 0, 1);
+    return mix > threshold ? second : first;
+  }
+
+  function drawPixel(ctx, image, state, tone, threshold, grid) {
+    const { cols, rows, cellW, cellH } = grid;
+    const pixels = sampleNearest(image, cols, rows);
+    const invertColor = Boolean(state.invert) && state.palette === 'source';
+    const palette = state.pixelPalette && state.pixelPalette !== 'original' ? DITHER_PALETTES[state.pixelPalette] : null;
+    const gap = 1;
+
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const offset = (row * cols + col) * 4;
+        if (pixels[offset + 3] < 8) continue;
+
+        const r = pixels[offset];
+        const g = pixels[offset + 1];
+        const b = pixels[offset + 2];
+        const luma = tone[(0.299 * r + 0.587 * g + 0.114 * b) | 0];
+        if (luma < threshold) continue;
+
+        const [cr, cg, cb] = colorRgb(
+          state,
+          invertColor ? 255 - r : r,
+          invertColor ? 255 - g : g,
+          invertColor ? 255 - b : b,
+          luma,
+        );
+        const thresholdAt = ditherThreshold(col, row);
+        const [qr, qg, qb] = palette
+          ? paletteColor(palette, cr, cg, cb, thresholdAt)
+          : [quantizeChannel(cr), quantizeChannel(cg), quantizeChannel(cb)];
+        ctx.fillStyle = `rgb(${qr},${qg},${qb})`;
+        ctx.fillRect(
+          col * cellW + gap / 2,
+          row * cellH + gap / 2,
+          Math.max(0.5, cellW - gap),
+          Math.max(0.5, cellH - gap),
+        );
+      }
+    }
+  }
+
   function drawDotGrid(ctx, cols, rows, cellW, cellH, color) {
     ctx.save();
     ctx.fillStyle = color;
@@ -1947,6 +2049,7 @@
     if (effect === 'braille') drawBraille(ctx, image, state, tone, threshold, grid);
     else if (effect === 'dither') drawDither(ctx, image, state, tone, threshold, grid);
     else if (effect === 'halftone') drawHalftone(ctx, image, state, tone, threshold, canvas.width, canvas.height, grid);
+    else if (effect === 'pixel') drawPixel(ctx, image, state, tone, threshold, grid);
     else if (effect === 'block') drawBlock(ctx, image, state, tone, threshold, grid);
     else drawCharacters(ctx, image, state, tone, threshold, grid);
     ctx.restore();
@@ -1970,10 +2073,10 @@
 
   function computeGrid(width, height, state, unit) {
     const effect = state.effect || 'chars';
-    const scaled = effect === 'dither' || effect === 'halftone';
+    const scaled = effect === 'dither' || effect === 'halftone' || effect === 'pixel';
     const fontPx = Math.max(3, state.size * unit);
     const font = `${fontPx}px ${effect === 'braille' ? BRAILLE_FONT : GLYPH_FONT}`;
-    let cellW = effect === 'dither'
+    let cellW = effect === 'dither' || effect === 'pixel'
       ? fontPx
       : effect === 'braille'
         ? Math.max(2, fontPx * 0.6)
@@ -2020,7 +2123,7 @@
       }
       const filter = blur > 0 ? ' filter="url(#bgblur)"' : '';
       parts.push(`<image href="${backdropDataUrl(image, width, height)}" x="0" y="0" width="${width}" height="${height}" preserveAspectRatio="xMidYMid slice"${filter}/>`);
-      parts.push(`<rect width="${width}" height="${height}" fill="${escapeXml(state.bg)}" opacity="0.45"/>`);
+      parts.push(`<rect width="${width}" height="${height}" fill="${escapeXml(state.bg)}" opacity="0.25"/>`);
     } else if (!state.bgTransparent) {
       parts.push(`<rect width="${width}" height="${height}" fill="${escapeXml(state.bg)}"/>`);
     }
@@ -2093,6 +2196,34 @@
             if (luma < threshold) continue;
             const radius = Math.max(0.35, luma * maxR);
             parts.push(`<circle cx="${fixed(x * pitch + pitch / 2)}" cy="${fixed(y * pitch + pitch / 2)}" r="${fixed(radius)}" fill="${paint(r, g, b, luma)}"/>`);
+          }
+        }
+      } else if (effect === 'pixel') {
+        const pixels = sampleNearest(image, cols, rows);
+        const gap = 1;
+        const invertColor = Boolean(state.invert) && state.palette === 'source';
+        const palette = state.pixelPalette && state.pixelPalette !== 'original' ? DITHER_PALETTES[state.pixelPalette] : null;
+        for (let row = 0; row < rows; row++) {
+          for (let col = 0; col < cols; col++) {
+            const offset = (row * cols + col) * 4;
+            if (pixels[offset + 3] < 8) continue;
+            const r = pixels[offset];
+            const g = pixels[offset + 1];
+            const b = pixels[offset + 2];
+            const luma = tone[(0.299 * r + 0.587 * g + 0.114 * b) | 0];
+            if (luma < threshold) continue;
+            const [cr, cg, cb] = colorRgb(
+              state,
+              invertColor ? 255 - r : r,
+              invertColor ? 255 - g : g,
+              invertColor ? 255 - b : b,
+              luma,
+            );
+            const thresholdAt = ditherThreshold(col, row);
+            const [qr, qg, qb] = palette
+              ? paletteColor(palette, cr, cg, cb, thresholdAt)
+              : [quantizeChannel(cr), quantizeChannel(cg), quantizeChannel(cb)];
+            parts.push(`<rect x="${fixed(col * cellW + gap / 2)}" y="${fixed(row * cellH + gap / 2)}" width="${fixed(Math.max(0.5, cellW - gap))}" height="${fixed(Math.max(0.5, cellH - gap))}" fill="rgb(${qr},${qg},${qb})"/>`);
           }
         }
       } else if (effect === 'block') {
@@ -2174,6 +2305,8 @@
   const ditherControls = document.getElementById('ditherControls');
   const ditherAlgoSelect = document.getElementById('ditherAlgorithm');
   const ditherPaletteSelect = document.getElementById('ditherPalette');
+  const pixelPaletteSelect = document.getElementById('pixelPalette');
+  const pixelColorRow = document.getElementById('pixelColorRow');
   const ditherColorRow = document.getElementById('ditherColorRow');
   const charsInput = document.getElementById('charsInput');
   const sizeLabel = document.getElementById('sizeLabel');
@@ -2798,6 +2931,7 @@
     rampSelect.value = state.ramp;
     ditherAlgoSelect.value = state.ditherAlgorithm;
     ditherPaletteSelect.value = state.ditherPalette;
+    pixelPaletteSelect.value = state.pixelPalette;
     bgColor.value = state.bg;
     bgValue.textContent = state.bg;
     if (document.activeElement !== charsInput) charsInput.value = state.chars;
@@ -2805,13 +2939,20 @@
     charsControls.hidden = state.effect !== 'chars';
     ditherControls.hidden = state.effect !== 'dither';
     ditherColorRow.hidden = state.effect !== 'dither';
+    pixelColorRow.hidden = state.effect !== 'pixel';
     charsRow.hidden = state.ramp !== 'custom';
     randomRows.hidden = !state.randomize;
     const mode = backgroundMode();
     bgColorRow.hidden = mode !== 'solid';
     gaussianRows.hidden = mode !== 'blurred';
 
-    sizeLabel.textContent = state.effect === 'chars' ? 'Size' : state.effect === 'block' ? 'Tile size' : 'Dot size';
+    sizeLabel.textContent = state.effect === 'chars'
+      ? 'Size'
+      : state.effect === 'block'
+        ? 'Tile size'
+        : state.effect === 'pixel'
+          ? 'Pixel size'
+          : 'Dot size';
 
     for (const button of panel.querySelectorAll('[data-palette]')) {
       button.setAttribute('aria-pressed', String(button.dataset.palette === state.palette));
@@ -3010,8 +3151,8 @@
         }
         lines.push(line.trimEnd());
       }
-    } else if (effect === 'block') {
-      const pixels = sample(image, cols, rows);
+    } else if (effect === 'block' || effect === 'pixel') {
+      const pixels = effect === 'pixel' ? sampleNearest(image, cols, rows) : sample(image, cols, rows);
       for (let row = 0; row < rows; row++) {
         let line = '';
         for (let col = 0; col < cols; col++) {
@@ -3155,6 +3296,10 @@
         requestRender();
       } else if (target === ditherPaletteSelect) {
         state.ditherPalette = target.value;
+        markCustom();
+        requestRender();
+      } else if (target === pixelPaletteSelect) {
+        state.pixelPalette = target.value;
         markCustom();
         requestRender();
       } else if (target instanceof HTMLInputElement && target.type === 'color') {
